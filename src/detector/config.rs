@@ -28,6 +28,7 @@ impl DetectorConfig<ahash::RandomState> {
         Self::default()
     }
 
+    /// Faster, but lower accuracy
     #[inline]
     pub fn new_max_trigrams() -> Self {
         Self::new().max_trigrams()
@@ -58,6 +59,7 @@ impl<S: BuildHasher + Default> DetectorConfig<S> {
         }
     }
 
+    /// Faster, but lower accuracy
     #[inline]
     pub fn max_trigrams(mut self) -> Self {
         self.long_text_ngrams = 3..=3;
