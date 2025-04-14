@@ -1,0 +1,41 @@
+[package]
+name = "langram"
+version = "0.1.0"
+authors = ["Dmitry Rodionov <gh@rdmtr.com>"]
+description = "Natural language detection library"
+documentation = "https://docs.rs/langram/"
+repository = "https://github.com/RoDmitry/langram"
+categories = ["text-processing"]
+keywords = ["language", "detect", "recognise", "process", "nlp"]
+include = ["src"]
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+edition = "2021"
+
+[profile.dev]
+opt-level = 1
+
+[lib]
+name = "langram"
+path = "src/lib.rs"
+
+[dependencies]
+alphabet_detector = "0.3"
+arraystring = "0.3"
+atoi_simd = "0.16"
+brotli = "7"
+debug_unsafe = "0.1"
+fraction = "0.15"
+itertools = "0.14"
+langram_models = { path = "../langram_models", version = "0.0" }
+serde = { version = "1", features = ["derive"] }
+serde_encom = "0.3"
+serde_map = "0.2"
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+ahash = "0.8"
+rayon = "1"
+
+[dev-dependencies]
+float-cmp = "0.10"
+rstest = "0.25"

@@ -1,0 +1,30 @@
+[package]
+name = "langram_train"
+version = "0.1.0"
+authors = ["Dmitry Rodionov <gh@rdmtr.com>"]
+description = "Langram train models"
+documentation = "https://docs.rs/langram/"
+repository = "https://github.com/RoDmitry/langram"
+include = ["src"]
+license = "MIT OR Apache-2.0"
+edition = "2021"
+
+[[bin]]
+name = "train_files"
+required-features = ["alphabet_detector/files_read"]
+
+[dependencies]
+ahash = "0.8"
+alphabet_detector = "0.3"
+brotli = "7"
+cap = "0.1"
+clap = { version = "4", features = ["derive"] }
+fraction = "0.15"
+itertools = "0.14"
+langram = { path = "..", version = "0.1"}
+libc = "0.2"
+serde_encom = "0.3"
+threadpool = "1"
+
+[features]
+default = ["alphabet_detector/files_read"]
