@@ -5,6 +5,10 @@
 
 ## Over 200 languages
 
+Uses [`alphabet_detector`](https://github.com/RoDmitry/alphabet_detector) as a word separator + language prefilter.
+
+Based on char (not word) [n-gram language model](https://en.wikipedia.org/wiki/Word_n-gram_language_model) modified algorithm.
+
 This library is a complete rewrite of Lingua: more languages, more accuracy, faster, etc.
 
 ### Setup
