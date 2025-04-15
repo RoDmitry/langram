@@ -1,6 +1,6 @@
 use super::{model::Model, *};
 use crate::ScriptLanguage::*;
-use ::std::{collections::HashSet, sync::LazyLock};
+use ::std::sync::LazyLock;
 use ahash::AHashMap;
 use float_cmp::approx_eq;
 use rstest::*;
@@ -116,7 +116,7 @@ static MODELS_ALL_LANGUAGES_PRELOADED: LazyLock<ModelsStorage> = LazyLock::new(|
     case(German, "lter", 0.28),
     case(German, "alter", 0.3)
 )]
-fn test_model_ngram_lookup(language: ScriptLanguage, ngram: &str, expected_probability: f64) {
+fn test_mock_model_ngram_lookup(language: ScriptLanguage, ngram: &str, expected_probability: f64) {
     let ngram_length = ngram.chars().count();
     // mock_detector_for_english_and_german
     // .load_language_models_by_ngram_len(ngram_length, &ahashset!(language));
@@ -169,7 +169,7 @@ fn test_model_ngram_lookup(language: ScriptLanguage, ngram: &str, expected_proba
         1
     )
 )]
-fn test_ngrams_sum_cnt(
+fn test_mock_ngrams_sum_cnt(
     ngrams: Vec<&'static str>,
     expected_ngrams_sum: f64,
     expected_ngrams_cnt: usize,
@@ -222,7 +222,7 @@ fn test_ngrams_sum_cnt(
         )
     )
 )]
-fn test_probabilities_languages_ngrams(
+fn test_mock_probabilities_languages_ngrams(
     ngrams: Vec<&'static str>,
     expected_probabilities: AHashMap<ScriptLanguage, f64>,
 ) {
@@ -263,7 +263,10 @@ fn test_probabilities_languages_ngrams(
     case::unique_ngrams("o", vec![(English, 0.5), (German, 0.5)]),
     case::unknown_ngrams("проарплап", vec![]),
 )]
-fn test_probabilities_relative(text: &str, expected_probabilities: Vec<(ScriptLanguage, f64)>) {
+fn test_mock_probabilities_relative(
+    text: &str,
+    expected_probabilities: Vec<(ScriptLanguage, f64)>,
+) {
     let detector = Detector::new(
         DetectorConfig::with_languages(ahashset!(English, German)),
         &MOCK_MODELS_ENGLISH_AND_GERMAN,
@@ -282,7 +285,7 @@ fn test_probabilities_relative(text: &str, expected_probabilities: Vec<(ScriptLa
     expected_probabilities,
     case::script_no_models("ꨕ", vec![(ChamEastern, 0.5), (ChamWestern, 0.5)]),
 )]
-fn test_probabilities_relative_no_filter(
+fn test_mock_probabilities_relative_no_filter(
     text: &str,
     expected_probabilities: Vec<(ScriptLanguage, f64)>,
 ) {
@@ -305,7 +308,7 @@ fn test_probabilities_relative_no_filter(
     case("Alter", Some(German)),
     case("проарплап", None)
 )]
-fn test_detect_top_one(word: &str, expected_language: Option<ScriptLanguage>) {
+fn test_mock_detect_top_one(word: &str, expected_language: Option<ScriptLanguage>) {
     let detector = Detector::new(
         DetectorConfig::with_languages(ahashset!(English, German)),
         &MOCK_MODELS_ENGLISH_AND_GERMAN,
@@ -569,33 +572,58 @@ fn test_detect_multiple_with_four_languages(
 #[rstest(
     expected_language,
     text,
+    case(Kazakh, "нормаланбайды"),
+    case(Kazakh, "нормаланбайды I"),
+    case(Kazakh, "Балаларды жүзуге үй-рету бассейнінің үй-жайы"),
+    case(English, "I know you әлем"),
+    case(ChineseSimplified, "经济"),
+    case(ChineseTraditional, "經濟"),
+    case::kanji(Japanese, "経済"),
+    case::kanji2(Japanese, "自動販売機"),
+    case(Arabic, "والموضوع")
+)]
+fn test_detect_top_one(expected_language: ScriptLanguage, text: &str) {
+    let detector = Detector::new(
+        DetectorConfig::new_all_languages(),
+        &MODELS_ALL_LANGUAGES_PRELOADED,
+    );
+    assert_eq!(detector.detect_top_one(text, 0.0), Some(expected_language));
+}
+
+#[rstest(text, languages,
+    case(
+        "ام وی با نیکی میناج تیزر داشت؟؟؟؟؟؟ i vote for bts ( _ ) as the _ via ( _ )",
+        ahashset!(English, Urdu)
+    ),
+    case(
+        "Az elmúlt hétvégén 12-re emelkedett az elhunyt koronavírus-fertőzöttek száma Szlovákiában. Mindegyik szociális otthon dolgozóját letesztelik, Matovič szerint az ingázóknak még várniuk kellene a teszteléssel",
+        ahashset!(Hungarian, Slovak)
+    )
+)]
+fn test_detect_top_one_is_deterministic(text: &str, languages: AHashSet<ScriptLanguage>) {
+    let detector_config = DetectorConfig::with_languages(languages.clone().into());
+    let detector = Detector::new(detector_config, &MODELS_ALL_LANGUAGES_PRELOADED);
+
+    let mut detected_languages = AHashSet::new();
+    for _ in 0..100 {
+        let language = detector.detect_top_one(text, 0.0);
+        detected_languages.insert(language.unwrap());
+    }
+    assert_eq!(
+        detected_languages.len(),
+        1,
+        "language detector is non-deterministic for languages {:?}",
+        languages
+    );
+}
+
+/* #[rstest(
+    expected_language,
+    text,
     languages,
-    case(Kazakh, "нормаланбайды", ahashset![English, Kazakh]),
-    case(Kazakh, "нормаланбайды I", ahashset![English, Kazakh]),
-    case(Kazakh, "Балаларды жүзуге үй-рету бассейнінің үй-жайы", ahashset![Kazakh, MongolianHalh]),
-    case::simplified_chinese(
-        ChineseSimplified,
-        "经济",
-        ahashset![ChineseSimplified, ChineseTraditional, ChineseCantoneseTraditional, Japanese],
-    ),
-    case::traditional_chinese(
-        ChineseTraditional,
-        "經濟",
-        ahashset![ChineseSimplified, ChineseTraditional, ChineseCantoneseTraditional, Japanese],
-    ),
-    case::kanji(
-        Japanese,
-        "経済",
-        ahashset![ChineseSimplified, ChineseTraditional, ChineseCantoneseTraditional, Japanese],
-    ),
-    case::kanji2(
-        Japanese,
-        "自動販売機",
-        ahashset![ChineseSimplified, ChineseTraditional, ChineseCantoneseTraditional, Japanese],
-    ),
     case::arab(Arabic, "والموضوع", ahashset![English, Arabic]),
 )]
-fn test_specific_language_detection_problems(
+fn test_detect_top_one_with_languages(
     expected_language: ScriptLanguage,
     text: &str,
     languages: AHashSet<ScriptLanguage>,
@@ -606,7 +634,7 @@ fn test_specific_language_detection_problems(
     );
     let language = detector.detect_top_one(text, 0.0).unwrap();
     assert_eq!(language, expected_language);
-}
+} */
 
 /* #[should_panic]
 #[rstest(text,
@@ -631,7 +659,7 @@ fn assert_language_filtering_with_rules_text_panics(
 } */
 
 #[rstest(invalid_str, case(""), case(" \n  \t;"), case("3<856%)§"))]
-fn assert_strings_without_letters_return_no_language(invalid_str: &str) {
+fn test_strings_without_letters(invalid_str: &str) {
     let detector = Detector::new(
         DetectorConfig::new_all_languages(),
         &MODELS_ALL_LANGUAGES_PRELOADED,
@@ -639,55 +667,14 @@ fn assert_strings_without_letters_return_no_language(invalid_str: &str) {
     assert_eq!(detector.detect_top_one(invalid_str, 0.0), None);
 }
 
-#[rstest(text, expected_language, case("I know you әлем", Some(English)))]
-fn assert_language_detection_correct(text: &str, expected_language: Option<ScriptLanguage>) {
-    let detector = Detector::new(
-        DetectorConfig::new_all_languages(),
-        &MODELS_ALL_LANGUAGES_PRELOADED,
-    );
-    assert_eq!(detector.detect_top_one(text, 0.0), expected_language);
-}
-
-#[rstest(text, languages,
-    case(
-        "ام وی با نیکی میناج تیزر داشت؟؟؟؟؟؟ i vote for bts ( _ ) as the _ via ( _ )",
-        vec!(English, Urdu)
-    ),
-    case(
-        "Az elmúlt hétvégén 12-re emelkedett az elhunyt koronavírus-fertőzöttek száma Szlovákiában. Mindegyik szociális otthon dolgozóját letesztelik, Matovič szerint az ingázóknak még várniuk kellene a teszteléssel",
-        vec!(Hungarian, Slovak)
-    )
-)]
-fn assert_language_detection_is_deterministic(text: &str, languages: Vec<ScriptLanguage>) {
-    let detector_config = DetectorConfig::with_languages(
-        languages
-            .iter()
-            .cloned()
-            .collect::<HashSet<_, ahash::RandomState>>(),
-    );
-    let detector = Detector::new(detector_config, &MODELS_ALL_LANGUAGES_PRELOADED);
-
-    let mut detected_languages = AHashSet::new();
-    for _ in 0..100 {
-        let language = detector.detect_top_one(text, 0.0);
-        detected_languages.insert(language.unwrap());
-    }
-    assert_eq!(
-        detected_languages.len(),
-        1,
-        "language detector is non-deterministic for languages {:?}",
-        languages
-    );
-}
-
 #[rstest]
-fn test_low_accuracy_mode() {
+fn test_max_trigrams_mode() {
     let detector_config = DetectorConfig::with_languages(ahashset!(English, German)).max_trigrams();
     let detector = Detector::new(detector_config, &MODELS_ALL_LANGUAGES_PRELOADED);
 
-    assert_ne!(detector.detect_top_one("bed", 0.0), None);
-    assert_ne!(detector.detect_top_one("be", 0.0), None);
-    assert_ne!(detector.detect_top_one("b", 0.0), None);
+    assert!(detector.detect_top_one("bed", 0.0).is_some());
+    assert!(detector.detect_top_one("be", 0.0).is_some());
+    assert!(detector.detect_top_one("b", 0.0).is_some());
 
-    assert_eq!(detector.detect_top_one("", 0.0), None);
+    assert!(detector.detect_top_one("", 0.0).is_none());
 }
