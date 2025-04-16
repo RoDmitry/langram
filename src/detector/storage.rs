@@ -23,8 +23,8 @@ impl Default for ModelsStorage {
 }
 
 impl ModelsStorage {
-    pub fn preloaded<S: BuildHasher + Default + Sync>(
-        languages: HashSet<ScriptLanguage, S>,
+    pub fn preloaded<H: BuildHasher + Default + Sync>(
+        languages: HashSet<ScriptLanguage, H>,
     ) -> Self {
         let models_storage = ModelsStorage::default();
         let config = DetectorConfig::with_languages(languages);

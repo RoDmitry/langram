@@ -1,6 +1,6 @@
 use super::{model::Model, *};
 use crate::ScriptLanguage::*;
-use ::std::sync::LazyLock;
+use ::std::{collections::HashSet, sync::LazyLock};
 use ahash::AHashMap;
 use float_cmp::approx_eq;
 use rstest::*;
@@ -667,7 +667,7 @@ fn test_strings_without_letters(invalid_str: &str) {
     assert_eq!(detector.detect_top_one(invalid_str, 0.0), None);
 }
 
-#[rstest]
+#[test]
 fn test_max_trigrams_mode() {
     let detector_config = DetectorConfig::with_languages(ahashset!(English, German)).max_trigrams();
     let detector = Detector::new(detector_config, &MODELS_ALL_LANGUAGES_PRELOADED);
@@ -677,4 +677,11 @@ fn test_max_trigrams_mode() {
     assert!(detector.detect_top_one("b", 0.0).is_some());
 
     assert!(detector.detect_top_one("", 0.0).is_none());
+}
+
+#[test]
+fn test_change_langs() {
+    let config_new = DetectorConfig::new_all_languages();
+    let config_hash = config_new.copy_with_languages(HashSet::new());
+    let _config_ahash = config_hash.languages(ahashset!(English));
 }

@@ -3,18 +3,18 @@ use ::core::{hash::BuildHasher, ops::RangeInclusive};
 use ::std::collections::HashSet;
 use alphabet_detector::ScriptLanguage;
 
-pub struct DetectorConfig<S: BuildHasher + Default> {
-    pub languages: HashSet<ScriptLanguage, S>,
+pub struct DetectorConfig<H: BuildHasher + Default> {
+    pub languages: HashSet<ScriptLanguage, H>,
     pub(super) long_text_minlen: usize,
     pub(super) long_text_ngrams: RangeInclusive<usize>,
     pub(super) short_text_ngrams: RangeInclusive<usize>,
 }
 
-impl<S: BuildHasher + Default> Default for DetectorConfig<S> {
+impl<H: BuildHasher + Default> Default for DetectorConfig<H> {
     #[inline]
     fn default() -> Self {
         Self {
-            languages: HashSet::with_hasher(S::default()),
+            languages: HashSet::with_hasher(H::default()),
             long_text_minlen: 120,
             long_text_ngrams: 3..=NGRAM_MAX_SIZE,
             short_text_ngrams: 1..=NGRAM_MAX_SIZE,
@@ -40,22 +40,12 @@ impl DetectorConfig<ahash::RandomState> {
     }
 }
 
-impl<S: BuildHasher + Default> DetectorConfig<S> {
+impl<H: BuildHasher + Default> DetectorConfig<H> {
     #[inline]
-    pub fn with_languages(languages: HashSet<ScriptLanguage, S>) -> Self {
+    pub fn with_languages(languages: HashSet<ScriptLanguage, H>) -> Self {
         Self {
             languages,
             ..Default::default()
-        }
-    }
-
-    #[inline]
-    pub fn copy_with_languages(&self, languages: HashSet<ScriptLanguage, S>) -> Self {
-        Self {
-            languages,
-            long_text_minlen: self.long_text_minlen,
-            long_text_ngrams: self.long_text_ngrams.clone(),
-            short_text_ngrams: self.short_text_ngrams.clone(),
         }
     }
 
@@ -68,13 +58,33 @@ impl<S: BuildHasher + Default> DetectorConfig<S> {
     }
 
     #[inline]
-    pub fn languages(mut self, languages: HashSet<ScriptLanguage, S>) -> Self {
-        self.languages = languages;
-        self
+    pub fn languages<H2: BuildHasher + Default>(
+        self,
+        languages: HashSet<ScriptLanguage, H2>,
+    ) -> DetectorConfig<H2> {
+        DetectorConfig {
+            languages,
+            long_text_minlen: self.long_text_minlen,
+            long_text_ngrams: self.long_text_ngrams,
+            short_text_ngrams: self.short_text_ngrams,
+        }
     }
 
     #[inline]
-    pub fn all_languages(self) -> Self {
+    pub fn copy_with_languages<H2: BuildHasher + Default>(
+        &self,
+        languages: HashSet<ScriptLanguage, H2>,
+    ) -> DetectorConfig<H2> {
+        DetectorConfig {
+            languages,
+            long_text_minlen: self.long_text_minlen,
+            long_text_ngrams: self.long_text_ngrams.clone(),
+            short_text_ngrams: self.short_text_ngrams.clone(),
+        }
+    }
+
+    #[inline]
+    pub fn all_languages(self) -> DetectorConfig<ahash::RandomState> {
         self.languages(ScriptLanguage::all().collect())
     }
 

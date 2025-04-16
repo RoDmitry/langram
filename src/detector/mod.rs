@@ -20,14 +20,14 @@ pub use config::DetectorConfig;
 pub(crate) use model::ModelNgrams;
 pub use storage::ModelsStorage;
 
-pub struct Detector<'m, S: BuildHasher + Default> {
-    pub config: DetectorConfig<S>,
+pub struct Detector<'m, H: BuildHasher + Default> {
+    pub config: DetectorConfig<H>,
     pub models_storage: &'m ModelsStorage,
 }
 
-impl<'m, S: BuildHasher + Default> Detector<'m, S> {
+impl<'m, H: BuildHasher + Default> Detector<'m, H> {
     #[inline]
-    pub fn new(config: DetectorConfig<S>, models_storage: &'m ModelsStorage) -> Self {
+    pub fn new(config: DetectorConfig<H>, models_storage: &'m ModelsStorage) -> Self {
         Self {
             config,
             models_storage,
@@ -37,7 +37,7 @@ impl<'m, S: BuildHasher + Default> Detector<'m, S> {
     /// Preload models for the languages selected in the config of this detector
     pub fn preload_models(&self)
     where
-        S: Sync,
+        H: Sync,
     {
         let min_ngram = *self
             .config
