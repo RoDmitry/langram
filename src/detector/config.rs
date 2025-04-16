@@ -3,6 +3,7 @@ use ::core::{hash::BuildHasher, ops::RangeInclusive};
 use ::std::collections::HashSet;
 use alphabet_detector::ScriptLanguage;
 
+#[derive(Debug)]
 pub struct DetectorConfig<H: BuildHasher + Default> {
     pub languages: HashSet<ScriptLanguage, H>,
     pub(super) long_text_minlen: usize,
