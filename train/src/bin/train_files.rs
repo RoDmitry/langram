@@ -96,7 +96,7 @@ fn main() {
                     return;
                 } */
                 // TODO: rm this filter
-                /* if alph != "Latn" {
+                /* if script != Some(Script::Latin) {
                     return;
                 } */
 

@@ -3,13 +3,19 @@
 [![Crate](https://img.shields.io/crates/v/langram.svg)](https://crates.io/crates/langram)
 [![API](https://docs.rs/langram/badge.svg)](https://docs.rs/langram)
 
-## Over 200 languages
+## 308 ScriptLanguages (187 models + 121 single language scripts)
+
+> One language can be written in multiple scripts, so it will be detected as a different [`ScriptLanguage`](https://docs.rs/alphabet_detector/latest/alphabet_detector/enum.ScriptLanguage.html) (language + script)
 
 Uses [`alphabet_detector`](https://github.com/RoDmitry/alphabet_detector) as a word separator + language prefilter.
 
 Based on char (not word) [n-gram language model](https://en.wikipedia.org/wiki/Word_n-gram_language_model) modified algorithm.
 
-This library is a complete rewrite of Lingua: more languages, more accuracy, faster, etc.
+This library is a complete rewrite of Lingua: 5x faster, more accuracy, more languages, etc.
+
+[Accuracy report](https://github.com/RoDmitry/lang_detectors_compare/blob/main/accuracy/langram.csv)
+
+[Comparison with other language detectors](https://github.com/RoDmitry/lang_detectors_compare)
 
 ### Setup
 
