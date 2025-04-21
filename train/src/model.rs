@@ -66,7 +66,8 @@ impl<'t> TrainingModel<'t> {
         sorted.sort_unstable_by(|a, b| b.0.cmp(&a.0));
 
         let mut lang_model = FileModel::default();
-        for (gf, ngrams) in sorted {
+        for (gf, mut ngrams) in sorted {
+            ngrams.sort_unstable();
             lang_model.insert_unchecked(
                 Fraction::from(gf),
                 ngrams.into_iter().flat_map(|v| v.iter()).collect(),
