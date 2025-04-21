@@ -6,7 +6,7 @@ use ::std::{
     path::Path,
 };
 use ahash::AHashMap;
-use alphabet_detector::{filter_max, Script, ScriptLanguage};
+use alphabet_detector::{filter_max, ScriptLanguage, UcdScript};
 use brotli::CompressorWriter;
 use itertools::Itertools;
 use langram::FileModel;
@@ -34,7 +34,7 @@ pub fn create_model_and_write_files(
     language: ScriptLanguage,
 ) -> io::Result<()> {
     let words = alphabet_detector::words::from_ch_ind(char_indices);
-    let is_han = ScriptLanguage::all_with_script(Script::Han).contains(&language);
+    let is_han = UcdScript::from(language) == UcdScript::Han;
     let mut word_chars: Vec<Vec<char>> = words
         // .inspect(|wld| println!("{:?}", wld))
         // filter
@@ -55,7 +55,7 @@ pub fn create_model_and_write_files(
 
     if is_han {
         word_chars.retain_mut(|chars| {
-            chars.retain(|&ch| Script::find(ch) == Script::Han);
+            chars.retain(|&ch| UcdScript::find(ch) == UcdScript::Han);
             !chars.is_empty()
         });
     }

@@ -20,10 +20,11 @@ name = "langram"
 path = "src/lib.rs"
 
 [dependencies]
-alphabet_detector = "0.3"
+alphabet_detector = "0.5"
+# alphabet_detector = { path = "../alphabet_detector", version = "0.5" }
 arraystring = "0.3"
 atoi_simd = "0.16"
-brotli = "7"
+brotli = "8"
 debug_unsafe = "0.1"
 fraction = "0.15"
 itertools = "0.14"

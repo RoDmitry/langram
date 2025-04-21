@@ -15,8 +15,9 @@ required-features = ["alphabet_detector/files_read"]
 
 [dependencies]
 ahash = "0.8"
-alphabet_detector = "0.3"
-brotli = "7"
+alphabet_detector = "0.5"
+# alphabet_detector = { path = "../../alphabet_detector", version = "0.5" }
+brotli = "8"
 cap = "0.1"
 clap = { version = "4", features = ["derive"] }
 fraction = "0.15"

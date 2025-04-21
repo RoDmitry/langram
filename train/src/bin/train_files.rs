@@ -7,7 +7,7 @@ use ::std::{
     thread,
     time::Duration,
 };
-use alphabet_detector::{reader::ReadCharsChunks, slang_arr_default, Script, ScriptLanguage};
+use alphabet_detector::{reader::ReadCharsChunks, slang_arr_default, ScriptLanguage, UcdScript};
 use cap::Cap;
 use clap::Parser;
 // #[cfg(not(target_env = "msvc"))]
@@ -83,10 +83,8 @@ fn main() {
                     *lang_seen = true;
                 }
 
-                let script = <Option<Script>>::from(lang);
-                let langs = script
-                    .map(ScriptLanguage::all_with_script)
-                    .unwrap_or_default();
+                let script = UcdScript::from(lang);
+                let langs = ScriptLanguage::all_with_script(script);
                 if langs.len() == 1 {
                     println!("*{}* SKIP single lang {:?} in script", file_name, lang);
                     return;
@@ -96,7 +94,7 @@ fn main() {
                     return;
                 } */
                 // TODO: rm this filter
-                /* if script != Some(Script::Latin) {
+                /* if script != UcdScript::Latin {
                     return;
                 } */
 

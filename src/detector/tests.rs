@@ -241,7 +241,7 @@ fn test_mock_probabilities_languages_ngrams(
         if probability.is_zero() {
             continue;
         }
-        let language = ScriptLanguage::from_usize_unchecked(language);
+        let language = ScriptLanguage::transmute_from_usize(language);
         let expected_probability = expected_probabilities[&language];
 
         assert!(
