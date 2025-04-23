@@ -1,6 +1,6 @@
 [package]
 name = "langram_train"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Dmitry Rodionov <gh@rdmtr.com>"]
 description = "Langram train models"
 documentation = "https://docs.rs/langram/"
@@ -22,7 +22,7 @@ cap = "0.1"
 clap = { version = "4", features = ["derive"] }
 fraction = "0.15"
 itertools = "0.14"
-langram = { path = "..", version = "0.1"}
+langram = { path = "..", version = "0.2"}
 libc = "0.2"
 serde_encom = "0.3"
 threadpool = "1"
