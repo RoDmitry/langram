@@ -26,6 +26,8 @@ impl<'t> TrainingModel<'t> {
                 *absolute_frequencies.entry(ngram).or_default() += 1;
             }
         }
+        // let min_count = absolute_frequencies.values().sum::<usize>() / 10_000_000;
+        // absolute_frequencies.retain(|_, c| *c > min_count);
 
         Self {
             ngram_length,
@@ -35,25 +37,28 @@ impl<'t> TrainingModel<'t> {
     }
 
     fn compute_relative_frequencies(&self) -> AHashMap<GenericFraction<usize>, Vec<&'t [char]>> {
-        let total_ngram_frequency = self.absolute_frequencies.values().sum::<usize>();
+        let total_count = self.absolute_frequencies.values().sum::<usize>();
         let mut ngram_probabilities: AHashMap<GenericFraction<usize>, Vec<_>> = AHashMap::new();
 
-        for (&ngram, frequency) in self.absolute_frequencies.iter() {
+        for (&ngram, &frequency) in self.absolute_frequencies.iter() {
             let denominator =
                 if self.ngram_length == 1 || self.lower_ngram_absolute_frequencies.is_empty() {
-                    total_ngram_frequency
+                    total_count
                 } else {
-                    let start_ngram_abs_fr = *self
+                    let Some(&start_ngram_abs_fr) = self
                         .lower_ngram_absolute_frequencies
                         .get(&ngram[..ngram.len() - 1])
-                        .unwrap();
-                    let end_ngram_abs_fr = *self
-                        .lower_ngram_absolute_frequencies
-                        .get(&ngram[1..])
-                        .unwrap();
+                    else {
+                        continue;
+                    };
+                    let Some(&end_ngram_abs_fr) =
+                        self.lower_ngram_absolute_frequencies.get(&ngram[1..])
+                    else {
+                        continue;
+                    };
                     start_ngram_abs_fr.min(end_ngram_abs_fr)
                 };
-            let fract = GenericFraction::<usize>::new(*frequency, denominator);
+            let fract = GenericFraction::<usize>::new(frequency, denominator);
             ngram_probabilities.entry(fract).or_default().push(ngram);
         }
 

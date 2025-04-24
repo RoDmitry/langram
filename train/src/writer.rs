@@ -69,6 +69,7 @@ pub fn create_model_and_write_files(
         ..
     } = unigram_model;
 
+    println!("{:?} processing bigrams", out_mod_path.file_name().unwrap());
     let bigram_model = TrainingModel::from_text(&word_chars, 2, absolute_frequencies);
     bigram_model
         .to_file_model()
@@ -81,6 +82,10 @@ pub fn create_model_and_write_files(
         ..
     } = bigram_model;
 
+    println!(
+        "{:?} processing trigrams",
+        out_mod_path.file_name().unwrap()
+    );
     let trigram_model = TrainingModel::from_text(&word_chars, 3, absolute_frequencies);
     trigram_model
         .to_file_model()
@@ -90,6 +95,10 @@ pub fn create_model_and_write_files(
         ..
     } = trigram_model;
 
+    println!(
+        "{:?} processing quadrigrams",
+        out_mod_path.file_name().unwrap()
+    );
     let quadrigram_model = TrainingModel::from_text(&word_chars, 4, absolute_frequencies);
     quadrigram_model
         .to_file_model()
@@ -99,6 +108,10 @@ pub fn create_model_and_write_files(
         ..
     } = quadrigram_model;
 
+    println!(
+        "{:?} processing fivegrams",
+        out_mod_path.file_name().unwrap()
+    );
     let fivegram_model = TrainingModel::from_text(&word_chars, 5, absolute_frequencies);
     fivegram_model
         .to_file_model()
