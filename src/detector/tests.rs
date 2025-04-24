@@ -576,8 +576,8 @@ fn test_detect_multiple_with_four_languages(
     case(Kazakh, "нормаланбайды I"),
     case(Kazakh, "Балаларды жүзуге үй-рету бассейнінің үй-жайы"),
     case(English, "I know you әлем"),
-    case(ChineseSimplified, "经济"),
-    case(ChineseTraditional, "經濟"),
+    case(ChineseMandarinSimplified, "经济"),
+    case(ChineseMandarinTraditional, "經濟"),
     case::kanji(Japanese, "経済"),
     case::kanji2(Japanese, "自動販売機"),
     case(Arabic, "والموضوع")
