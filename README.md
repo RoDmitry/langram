@@ -27,7 +27,7 @@ To use it, you need to patch `langram_models` in `Cargo.toml`:
 langram_models = { git = "https://github.com/RoDmitry/langram_models.git" }
 ```
 
-* From predownloaded copy:
+* From predownloaded copy ([langram_models](https://github.com/RoDmitry/langram_models)):
 ```
 [patch.crates-io]
 langram_models = { path = "../langram_models" }
