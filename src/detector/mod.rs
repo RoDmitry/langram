@@ -147,11 +147,13 @@ impl<'m, H: BuildHasher + Default> Detector<'m, H> {
     ) -> Vec<(ScriptLanguage, f64)> {
         let mut summed_up_probabilities = Vec::with_capacity(filtered_languages.len());
         for language in filtered_languages.into_iter() {
-            let lang_data = probabilities
-                .iter()
-                .map(|it| *it.get_safe_unchecked(language as usize));
-            let sum: f64 = lang_data.clone().map(|(p, _)| p).sum();
-            let sum_cnt: usize = lang_data.clone().map(|(_, cnt)| cnt).sum();
+            let mut sum: f64 = 0.0;
+            let mut sum_cnt: usize = 0;
+            for probability in probabilities.iter() {
+                let (p, cnt) = *probability.get_safe_unchecked(language as usize);
+                sum += p;
+                sum_cnt += cnt;
+            }
 
             summed_up_probabilities.push((language, sum / sum_cnt as f64));
         }
@@ -242,7 +244,7 @@ impl<'m, H: BuildHasher + Default> Detector<'m, H> {
     }
 
     /// Detects the top one language of the input text.
-    /// If single language cannot be returned, [`None`] is returned.
+    /// If a single language cannot be returned, [`None`] is returned.
     pub fn detect_top_one(&self, text: &str, minimum_distance: f64) -> Option<ScriptLanguage> {
         debug_assert!(minimum_distance >= 0.0, "Minimum distance must be >= 0.0");
         let mut probabilities = self.probabilities(text).into_iter();
