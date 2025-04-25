@@ -1,6 +1,6 @@
 [package]
 name = "langram"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Dmitry Rodionov <gh@rdmtr.com>"]
 description = "Natural language detection library"
 documentation = "https://docs.rs/langram/"
@@ -20,8 +20,8 @@ name = "langram"
 path = "src/lib.rs"
 
 [dependencies]
-alphabet_detector = "0.5"
-# alphabet_detector = { path = "../alphabet_detector", version = "0.5" }
+alphabet_detector = "0.6"
+# alphabet_detector = { path = "../alphabet_detector", version = "0.6" }
 arraystring = "0.3"
 atoi_simd = "0.16"
 brotli = "8"
