@@ -17,12 +17,7 @@ impl<'t> TrainingModel<'t> {
     ) -> Self {
         let mut absolute_frequencies = AHashMap::new();
         for chars in words_chars.iter() {
-            if chars.len() < ngram_length {
-                continue;
-            }
-
-            for i in 0..=chars.len() - ngram_length {
-                let ngram = &chars[i..i + ngram_length];
+            for ngram in chars.windows(ngram_length) {
                 *absolute_frequencies.entry(ngram).or_default() += 1;
             }
         }
