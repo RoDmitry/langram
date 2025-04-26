@@ -34,7 +34,7 @@ macro_rules! ahashset {
     };
 }
 
-pub use alphabet_detector::ScriptLanguage;
+pub use alphabet_detector::{Language, Script, ScriptLanguage, UcdScript};
 
 pub const NGRAM_MAX_SIZE: usize = 5;
 
