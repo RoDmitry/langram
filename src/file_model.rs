@@ -19,11 +19,11 @@ pub(crate) fn file_name_by_length(ngram_length: usize) -> &'static str {
     }
 }
 
-pub type FileModel = SerdeMap<Fraction, String>;
+pub type FileModel = (usize, SerdeMap<Fraction, String>);
 
 pub(crate) fn parse_model(file_model: FileModel, ngram_length: usize) -> ModelNgrams {
-    let mut res = ModelNgrams::default();
-    for (fraction, ngrams) in file_model {
+    let mut res = ModelNgrams::with_capacity_and_hasher(file_model.0, Default::default());
+    for (fraction, ngrams) in file_model.1 {
         let floating_point_value = fraction.to_f64().ln();
         for ngram in &ngrams.chars().chunks(ngram_length) {
             res.insert(

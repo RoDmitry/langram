@@ -65,10 +65,10 @@ impl<'t> TrainingModel<'t> {
         let mut sorted: Vec<_> = relative_frequencies.into_iter().collect();
         sorted.sort_unstable_by(|a, b| b.0.cmp(&a.0));
 
-        let mut lang_model = FileModel::default();
+        let mut lang_model: FileModel = (self.absolute_frequencies.len(), Default::default());
         for (gf, mut ngrams) in sorted {
             ngrams.sort_unstable();
-            lang_model.insert_unchecked(
+            lang_model.1.insert_unchecked(
                 Fraction::from(gf),
                 ngrams.into_iter().flat_map(|v| v.iter()).collect(),
             );
