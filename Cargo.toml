@@ -29,6 +29,7 @@ debug_unsafe = "0.1"
 fraction = "0.15"
 itertools = "0.14"
 langram_models = { path = "../langram_models", version = "0.0" }
+rustc-hash = "2"
 serde = { version = "1", features = ["derive"] }
 serde_encom = "0.3"
 serde_map = "0.2"

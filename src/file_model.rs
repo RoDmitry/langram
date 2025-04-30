@@ -3,7 +3,6 @@ use ::std::{
     io::{Cursor, ErrorKind, Read},
     path::PathBuf,
 };
-use ahash::AHashMap;
 use alphabet_detector::ScriptLanguage;
 use brotli::Decompressor;
 use itertools::Itertools;
@@ -23,7 +22,7 @@ pub(crate) fn file_name_by_length(ngram_length: usize) -> &'static str {
 pub type FileModel = SerdeMap<Fraction, String>;
 
 pub(crate) fn parse_model(file_model: FileModel, ngram_length: usize) -> ModelNgrams {
-    let mut res = AHashMap::new();
+    let mut res = ModelNgrams::default();
     for (fraction, ngrams) in file_model {
         let floating_point_value = fraction.to_f64().ln();
         for ngram in &ngrams.chars().chunks(ngram_length) {
@@ -33,6 +32,7 @@ pub(crate) fn parse_model(file_model: FileModel, ngram_length: usize) -> ModelNg
             );
         }
     }
+    res.shrink_to_fit();
     res
 }
 

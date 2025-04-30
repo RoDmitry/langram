@@ -1,8 +1,8 @@
 use crate::{ngrams::NgramString, NGRAM_MAX_SIZE};
-use ahash::AHashMap;
 use debug_unsafe::slice::SliceGetter;
+use rustc_hash::FxHashMap;
 
-pub(crate) type ModelNgrams = AHashMap<NgramString, f64>;
+pub(crate) type ModelNgrams = FxHashMap<NgramString, f64>;
 type ModelNgramsArr = [ModelNgrams; NGRAM_MAX_SIZE];
 
 pub(super) struct Model {

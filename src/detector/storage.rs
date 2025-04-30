@@ -1,11 +1,11 @@
 use super::{model::Model, Detector, DetectorConfig};
 use crate::{
+    detector::ModelNgrams,
     file_model::{load_model, parse_model},
     NGRAM_MAX_SIZE,
 };
 use ::core::hash::BuildHasher;
 use ::std::{collections::HashSet, ops::RangeInclusive, sync::RwLock};
-use ahash::AHashMap;
 use alphabet_detector::{ScriptLanguage, ScriptLanguageArr};
 use debug_unsafe::slice::SliceGetter;
 #[cfg(not(target_family = "wasm"))]
@@ -65,7 +65,7 @@ impl ModelsStorage {
         let file_model = load_model(language, ngram_length);
         let ngram_model = match file_model {
             Ok(m) => parse_model(m, ngram_length),
-            _ => AHashMap::with_capacity(1),
+            _ => ModelNgrams::with_capacity_and_hasher(1, Default::default()),
         };
         ngram_models_guard.update_ngram(ngram_model, index);
     }
