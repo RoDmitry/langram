@@ -1,7 +1,7 @@
 use super::{model::Model, Detector, DetectorConfig};
 use crate::{
     detector::ModelNgrams,
-    file_model::{load_model, parse_model},
+    file_model::{file_name_by_length, load_model, parse_model},
     NGRAM_MAX_SIZE,
 };
 use ::core::hash::BuildHasher;
@@ -62,7 +62,7 @@ impl ModelsStorage {
         {
             return;
         }
-        let file_model = load_model(language, ngram_length);
+        let file_model = load_model(language, file_name_by_length(ngram_length));
         let ngram_model = match file_model {
             Ok(m) => parse_model(m, ngram_length),
             _ => ModelNgrams::with_capacity_and_hasher(1, Default::default()),

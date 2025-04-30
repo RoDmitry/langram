@@ -1,4 +1,4 @@
-use crate::{detector::ModelNgrams, fraction::Fraction, ngrams::NgramString};
+use crate::{detector::ModelNgrams, fraction::Fraction, ngrams::NgramString, NGRAM_MAX_SIZE};
 use ::std::{
     io::{Cursor, ErrorKind, Read},
     path::PathBuf,
@@ -15,7 +15,7 @@ pub(crate) fn file_name_by_length(ngram_length: usize) -> &'static str {
         3 => "trigrams.encom.br",
         4 => "quadrigrams.encom.br",
         5 => "fivegrams.encom.br",
-        _ => panic!("ngram length {ngram_length} is not in range 1..6"),
+        _ => panic!("ngram length {ngram_length} is not in range 1..={NGRAM_MAX_SIZE}"),
     }
 }
 
@@ -36,15 +36,11 @@ pub(crate) fn parse_model(file_model: FileModel, ngram_length: usize) -> ModelNg
     res
 }
 
-pub(crate) fn load_model(
-    language: ScriptLanguage,
-    ngram_length: usize,
-) -> std::io::Result<FileModel> {
+pub(crate) fn load_model(language: ScriptLanguage, file_name: &str) -> std::io::Result<FileModel> {
     if langram_models::MODELS_DIR.entries().len() < 2 {
         panic!("Models dir is empty. Path to `langram_models` crate must be changed.");
     }
 
-    let file_name = file_name_by_length(ngram_length);
     let file_path = PathBuf::from(language.into_str()).join(file_name);
     let compressed_file = langram_models::MODELS_DIR
         .get_file(file_path)
@@ -63,6 +59,6 @@ mod tests {
 
     #[test]
     fn test_load_model() {
-        load_model(ScriptLanguage::English, 1).unwrap();
+        load_model(ScriptLanguage::English, file_name_by_length(1)).unwrap();
     }
 }
