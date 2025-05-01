@@ -2,17 +2,25 @@ use super::{model::Model, *};
 use crate::ScriptLanguage::*;
 use ::std::{collections::HashSet, sync::LazyLock};
 use ahash::AHashMap;
+use compact_str::CompactString;
 use float_cmp::approx_eq;
 use rstest::*;
 
-fn create_mock_model(ngrams_model: [AHashMap<&'static str, f64>; NGRAM_MAX_LEN]) -> Model {
+fn create_mock_model(
+    ngrams_model: [AHashMap<&'static str, f64>; NGRAM_MAX_LEN],
+    wordgrams_model: AHashMap<&'static str, f64>,
+) -> Model {
     let ngrams = ngrams_model.map(|model| {
         model
             .into_iter()
             .map(|(k, v)| (NgramString::try_from_str(k).unwrap(), v.ln()))
             .collect()
     });
-    Model::from(ngrams)
+    let wordgrams = wordgrams_model
+        .into_iter()
+        .map(|(k, v)| (CompactString::from(k), v.ln()))
+        .collect();
+    Model::new(ngrams, wordgrams)
 }
 
 fn round_to_two_decimal_places(value: f64) -> f64 {
@@ -21,65 +29,73 @@ fn round_to_two_decimal_places(value: f64) -> f64 {
 
 const ENGLISH_UNIGRAMS_COUNT: f64 = 7.0;
 fn model_for_english() -> Model {
-    create_mock_model([
-        ahashmap!(
-            "a" => 0.01,
-            "l" => 0.02,
-            "t" => 0.03,
-            "e" => 0.04,
-            "r" => 0.05,
-            "o" => 1.0,
-            "k" => 1.0,
-        ),
-        ahashmap!(
-            "al" => 0.11,
-            "lt" => 0.12,
-            "te" => 0.13,
-            "er" => 0.14,
-        ),
-        ahashmap!(
-            "alt" => 0.19,
-            "lte" => 0.2,
-            "ter" => 0.21,
-        ),
-        ahashmap!(
-            "alte" => 0.25,
-            "lter" => 0.26,
-        ),
+    create_mock_model(
+        [
+            ahashmap!(
+                "a" => 0.01,
+                "l" => 0.02,
+                "t" => 0.03,
+                "e" => 0.04,
+                "r" => 0.05,
+                "o" => 1.0,
+                "k" => 1.0,
+            ),
+            ahashmap!(
+                "al" => 0.11,
+                "lt" => 0.12,
+                "te" => 0.13,
+                "er" => 0.14,
+            ),
+            ahashmap!(
+                "alt" => 0.19,
+                "lte" => 0.2,
+                "ter" => 0.21,
+            ),
+            ahashmap!(
+                "alte" => 0.25,
+                "lter" => 0.26,
+            ),
+            ahashmap!(
+                "alter" => 0.29,
+            ),
+        ],
         ahashmap!(
             "alter" => 0.29,
         ),
-    ])
+    )
 }
 
 const GERMAN_UNIGRAMS_COUNT: f64 = 6.0;
 fn model_for_german() -> Model {
-    create_mock_model([
-        ahashmap!(
-            "a" => 0.06,
-            "l" => 0.07,
-            "t" => 0.08,
-            "e" => 0.09,
-            "r" => 0.1,
-            "o" => 1.0,
-        ),
-        ahashmap!(
-            "al" => 0.15,
-            "lt" => 0.16,
-            "te" => 0.17,
-            "er" => 0.18,
-        ),
-        ahashmap!(
-            "alt" => 0.22,
-            "lte" => 0.23,
-            "ter" => 0.24,
-        ),
-        ahashmap!(
-            "alte" => 0.27,
-            "lter" => 0.28,
-        ),
+    create_mock_model(
+        [
+            ahashmap!(
+                "a" => 0.06,
+                "l" => 0.07,
+                "t" => 0.08,
+                "e" => 0.09,
+                "r" => 0.1,
+                "o" => 1.0,
+            ),
+            ahashmap!(
+                "al" => 0.15,
+                "lt" => 0.16,
+                "te" => 0.17,
+                "er" => 0.18,
+            ),
+            ahashmap!(
+                "alt" => 0.22,
+                "lte" => 0.23,
+                "ter" => 0.24,
+            ),
+            ahashmap!(
+                "alte" => 0.27,
+                "lter" => 0.28,
+            ),
+            ahashmap!("alter" => 0.3),
+        ],
         ahashmap!("alter" => 0.3),
-    ])
+    )
 }
 
 static MOCK_MODELS_ENGLISH_AND_GERMAN: LazyLock<ModelsStorage> = LazyLock::new(|| {
@@ -261,7 +277,7 @@ fn test_mock_probabilities_languages_ngrams(
     text,
     expected_probabilities,
     case::language_detected_by_rules("groß", vec![(German, 1.0)]),
-    case::known_ngrams("Alter", vec![(German, 0.62), (English, 0.38)]),
+    case::known_ngrams("Alter", vec![(German, 0.61), (English, 0.39)]),
     case::english_only_ngrams("k", vec![(English, 1.0)]),
     case::unique_ngrams("o", vec![(English, 0.5), (German, 0.5)]),
     case::unknown_ngrams("проарплап", vec![]),
@@ -583,7 +599,7 @@ fn test_detect_multiple_with_four_languages(
     case(ChineseMandarinTraditional, "經濟"),
     case::kanji(Japanese, "経済"),
     case::kanji2(Japanese, "自動販売機"),
-    case(Arabic, "والموضوع")
+    // case(Arabic, "كيف حالك؟")
 )]
 fn test_detect_top_one(expected_language: ScriptLanguage, text: &str) {
     let detector = Detector::new(

@@ -1,40 +1,81 @@
 use crate::{
-    detector::{ModelNgrams, NgramsSize},
+    detector::{ModelNgrams, NgramFromChars, NgramsSize},
     fraction::Fraction,
-    ngrams::NgramString,
 };
 use ::std::{
+    hash::Hash,
     io,
     io::{Cursor, ErrorKind, Read},
+    iter::Map,
     path::PathBuf,
+    str::{Chars, Split},
 };
 use alphabet_detector::ScriptLanguage;
 use brotli::Decompressor;
-use itertools::Itertools;
+use itertools::{IntoChunks, Itertools};
 use serde_map::SerdeMap;
 
 pub type FileModel = (usize, SerdeMap<Fraction, String>);
 
-pub(crate) fn parse_model(
+pub(crate) trait IntoIteratorBorrowed<'i>: Sized + Clone {
+    fn to_iter(&self) -> impl Iterator<Item = impl Iterator<Item = char>>;
+}
+
+impl<'i> IntoIteratorBorrowed<'i> for IntoChunks<Chars<'i>> {
+    #[inline(always)]
+    fn to_iter(&self) -> impl Iterator<Item = impl Iterator<Item = char>> {
+        self.into_iter()
+    }
+}
+
+impl<'i, T: FnMut(&'i str) -> Chars<'i> + Clone> IntoIteratorBorrowed<'i>
+    for Map<Split<'i, char>, T>
+{
+    #[inline(always)]
+    fn to_iter(&self) -> impl Iterator<Item = impl Iterator<Item = char>> {
+        // todo: optimize somehow?
+        self.to_owned()
+    }
+}
+
+pub(crate) struct ChunksNgramsUnpacker;
+pub(crate) struct SpaceNgramsUnpacker;
+
+pub(crate) trait NgramsUnpacker: Sized {
+    fn unpack<'a>(ngrams: &'a str, ngram_size: NgramsSize) -> impl IntoIteratorBorrowed<'a>;
+}
+
+impl NgramsUnpacker for ChunksNgramsUnpacker {
+    #[inline(always)]
+    fn unpack<'a>(ngrams: &'a str, ngram_size: NgramsSize) -> impl IntoIteratorBorrowed<'a> {
+        ngrams.chars().chunks(ngram_size as usize + 1)
+    }
+}
+
+impl NgramsUnpacker for SpaceNgramsUnpacker {
+    #[inline(always)]
+    fn unpack<'a>(ngrams: &'a str, _ngram_size: NgramsSize) -> impl IntoIteratorBorrowed<'a> {
+        ngrams.split(' ').map(|s| s.chars())
+    }
+}
+
+pub(crate) fn parse_model<Ngram: NgramFromChars + Eq + Hash, NU: NgramsUnpacker>(
     file_model: io::Result<FileModel>,
     ngram_size: NgramsSize,
-) -> ModelNgrams {
+) -> ModelNgrams<Ngram> {
     match file_model {
         Ok(m) => {
-            let mut res = ModelNgrams::with_capacity_and_hasher(m.0, Default::default());
+            let mut res = ModelNgrams::<Ngram>::with_capacity_and_hasher(m.0, Default::default());
             for (fraction, ngrams) in m.1 {
                 let floating_point_value = fraction.to_f64().ln();
-                for ngram in &ngrams.chars().chunks(ngram_size as usize + 1) {
-                    res.insert(
-                        NgramString::try_from_chars(ngram).unwrap(),
-                        floating_point_value,
-                    );
+                for ngram in NU::unpack(&ngrams, ngram_size).to_iter() {
+                    res.insert(Ngram::from_chars(ngram), floating_point_value);
                 }
             }
             res.shrink_to_fit();
             res
         }
-        _ => ModelNgrams::with_capacity_and_hasher(1, Default::default()),
+        _ => ModelNgrams::<Ngram>::with_capacity_and_hasher(1, Default::default()),
     }
 }
 

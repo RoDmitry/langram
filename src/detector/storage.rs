@@ -1,5 +1,5 @@
 use super::{model::Model, Detector, DetectorConfig, NgramsSize};
-use crate::file_model::{load_model, parse_model};
+use crate::file_model::{load_model, parse_model, ChunksNgramsUnpacker, SpaceNgramsUnpacker};
 use ::core::hash::BuildHasher;
 use ::std::{collections::HashSet, ops::RangeInclusive, sync::RwLock};
 use alphabet_detector::{ScriptLanguage, ScriptLanguageArr};
@@ -53,8 +53,26 @@ impl ModelsStorage {
             return;
         }
         let file_model = load_model(language, ngram_size.into_file_name());
-        let ngram_model = parse_model(file_model, ngram_size);
+        let ngram_model = parse_model::<_, ChunksNgramsUnpacker>(file_model, ngram_size);
         ngram_models_guard.update_ngrams(ngram_model, ngram_size);
+    }
+
+    fn load_wordgram_model(&self, language: ScriptLanguage) {
+        let ngram_models = self.0.get_safe_unchecked(language as usize);
+        let ngram_models_guard = ngram_models.read().unwrap();
+        if ngram_models_guard.wordgrams.capacity() > 0 {
+            return;
+        }
+
+        drop(ngram_models_guard);
+        let mut ngram_models_guard = ngram_models.write().unwrap();
+        // second check here, because there can be multiple threads waiting for the write lock
+        if ngram_models_guard.wordgrams.capacity() > 0 {
+            return;
+        }
+        let file_model = load_model(language, NgramsSize::Word.into_file_name());
+        let wordgram_model = parse_model::<_, SpaceNgramsUnpacker>(file_model, NgramsSize::Word);
+        ngram_models_guard.update_wordgrams(wordgram_model);
     }
 
     pub(super) fn load_models_from_languages<const PARALLEL: bool, HL: BuildHasher>(
@@ -70,6 +88,8 @@ impl ModelsStorage {
             ngram_length_range.clone().for_each(|ngram_length| {
                 self.load_model(language, NgramsSize::from(ngram_length - 1))
             });
+
+            self.load_wordgram_model(language);
         };
 
         if PARALLEL {
