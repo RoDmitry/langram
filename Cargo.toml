@@ -1,6 +1,6 @@
 [package]
 name = "langram"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Dmitry Rodionov <gh@rdmtr.com>"]
 description = "Natural language detection library"
 documentation = "https://docs.rs/langram/"
@@ -25,6 +25,7 @@ alphabet_detector = "0.6"
 arraystring = "0.3"
 atoi_simd = "0.16"
 brotli = "8"
+compact_str = "0.9"
 debug_unsafe = "0.1"
 fraction = "0.15"
 itertools = "0.14"

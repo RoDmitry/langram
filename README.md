@@ -5,11 +5,13 @@
 
 ## 308 ScriptLanguages (187 models + 121 single language scripts)
 
-> One language can be written in multiple scripts, so it will be detected as a different [`ScriptLanguage`](https://docs.rs/alphabet_detector/latest/alphabet_detector/enum.ScriptLanguage.html) (language + script)
+> One language can be written in multiple scripts, so it will be detected as a different [`ScriptLanguage`](https://docs.rs/langram/latest/langram/enum.ScriptLanguage.html) (language + script)
 
 Uses [`alphabet_detector`](https://github.com/RoDmitry/alphabet_detector) as a word separator + language prefilter.
 
-Based on char (not word) [n-gram language model](https://en.wikipedia.org/wiki/Word_n-gram_language_model) modified algorithm.
+Based on chars (1 - 5) and 1 word [n-gram language model](https://en.wikipedia.org/wiki/Word_n-gram_language_model) modified algorithm.
+
+[`ModelsStorage`](https://docs.rs/langram/latest/langram/struct.ModelsStorage.html) with all models preloaded uses around 4.1GB of RAM. There can be a way (unimplemented) to unload each language model after use, it will work slower but will use around 300MB of RAM.
 
 This library is a complete rewrite of Lingua: 5x faster, more accuracy, more languages, etc.
 
