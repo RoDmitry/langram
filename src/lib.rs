@@ -1,4 +1,4 @@
-//! # Language detection library
+//! # Natural language detection library
 //!
 //! ## 308 ScriptLanguages (187 models + 121 single language scripts)
 //!
