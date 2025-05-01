@@ -1,5 +1,10 @@
-use crate::{detector::ModelNgrams, fraction::Fraction, ngrams::NgramString, NGRAM_MAX_SIZE};
+use crate::{
+    detector::{ModelNgrams, NgramsSize},
+    fraction::Fraction,
+    ngrams::NgramString,
+};
 use ::std::{
+    io,
     io::{Cursor, ErrorKind, Read},
     path::PathBuf,
 };
@@ -8,32 +13,29 @@ use brotli::Decompressor;
 use itertools::Itertools;
 use serde_map::SerdeMap;
 
-pub(crate) fn file_name_by_length(ngram_length: usize) -> &'static str {
-    match ngram_length {
-        1 => "unigrams.encom.br",
-        2 => "bigrams.encom.br",
-        3 => "trigrams.encom.br",
-        4 => "quadrigrams.encom.br",
-        5 => "fivegrams.encom.br",
-        _ => panic!("ngram length {ngram_length} is not in range 1..={NGRAM_MAX_SIZE}"),
-    }
-}
-
 pub type FileModel = (usize, SerdeMap<Fraction, String>);
 
-pub(crate) fn parse_model(file_model: FileModel, ngram_length: usize) -> ModelNgrams {
-    let mut res = ModelNgrams::with_capacity_and_hasher(file_model.0, Default::default());
-    for (fraction, ngrams) in file_model.1 {
-        let floating_point_value = fraction.to_f64().ln();
-        for ngram in &ngrams.chars().chunks(ngram_length) {
-            res.insert(
-                NgramString::try_from_chars(ngram).unwrap(),
-                floating_point_value,
-            );
+pub(crate) fn parse_model(
+    file_model: io::Result<FileModel>,
+    ngram_size: NgramsSize,
+) -> ModelNgrams {
+    match file_model {
+        Ok(m) => {
+            let mut res = ModelNgrams::with_capacity_and_hasher(m.0, Default::default());
+            for (fraction, ngrams) in m.1 {
+                let floating_point_value = fraction.to_f64().ln();
+                for ngram in &ngrams.chars().chunks(ngram_size as usize + 1) {
+                    res.insert(
+                        NgramString::try_from_chars(ngram).unwrap(),
+                        floating_point_value,
+                    );
+                }
+            }
+            res.shrink_to_fit();
+            res
         }
+        _ => ModelNgrams::with_capacity_and_hasher(1, Default::default()),
     }
-    res.shrink_to_fit();
-    res
 }
 
 pub(crate) fn load_model(language: ScriptLanguage, file_name: &str) -> std::io::Result<FileModel> {
@@ -56,9 +58,10 @@ pub(crate) fn load_model(language: ScriptLanguage, file_name: &str) -> std::io::
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::detector::NgramsSize;
 
     #[test]
     fn test_load_model() {
-        load_model(ScriptLanguage::English, file_name_by_length(1)).unwrap();
+        load_model(ScriptLanguage::English, NgramsSize::Uni.into_file_name()).unwrap();
     }
 }

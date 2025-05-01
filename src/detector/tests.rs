@@ -5,7 +5,7 @@ use ahash::AHashMap;
 use float_cmp::approx_eq;
 use rstest::*;
 
-fn create_mock_model(ngrams_model: [AHashMap<&'static str, f64>; NGRAM_MAX_SIZE]) -> Model {
+fn create_mock_model(ngrams_model: [AHashMap<&'static str, f64>; NGRAM_MAX_LEN]) -> Model {
     let ngrams = ngrams_model.map(|model| {
         model
             .into_iter()
@@ -178,8 +178,11 @@ fn test_mock_ngrams_sum_cnt(
         DetectorConfig::with_languages(ahashset!(English)),
         &MOCK_MODELS_ENGLISH_AND_GERMAN,
     );
-    let (ngrams_sum, ngrams_cnt) =
-        detector.ngrams_sum_cnt(English, ngrams.iter().copied(), ngrams[0].chars().count());
+    let (ngrams_sum, ngrams_cnt) = detector.ngrams_sum_cnt(
+        English,
+        ngrams.iter().copied(),
+        NgramsSize::from(ngrams[0].chars().count() - 1),
+    );
 
     assert!(
         approx_eq!(f64, ngrams_sum, expected_ngrams_sum, ulps = 1),
@@ -234,7 +237,7 @@ fn test_mock_probabilities_languages_ngrams(
     let probabilities = detector.probabilities_languages_ngrams(
         ngrams.iter().copied(),
         &languages,
-        ngrams[0].chars().count(),
+        NgramsSize::from(ngrams[0].chars().count() - 1),
     );
 
     for (language, (probability, _cnt)) in probabilities.into_iter().enumerate() {

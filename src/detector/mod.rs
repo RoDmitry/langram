@@ -1,7 +1,4 @@
-use crate::{
-    ngrams::{prepare_ngrams, NgramString},
-    NGRAM_MAX_SIZE,
-};
+use crate::ngrams::{prepare_ngrams, NgramString};
 use ::core::{cmp::Ordering, hash::BuildHasher};
 use ahash::AHashSet;
 use alphabet_detector::{
@@ -17,7 +14,9 @@ mod storage;
 mod tests;
 
 pub use config::DetectorConfig;
-pub(crate) use model::ModelNgrams;
+#[cfg(test)]
+pub(crate) use model::NGRAM_MAX_LEN;
+pub(crate) use model::{ModelNgrams, NgramsSize};
 pub use storage::ModelsStorage;
 
 pub struct Detector<'m, H: BuildHasher + Default> {
@@ -72,14 +71,8 @@ impl<'m, H: BuildHasher + Default> Detector<'m, H> {
         &'a self,
         language: ScriptLanguage,
         ngrams_iter: impl Iterator<Item = &'a str>,
-        ngram_length: usize,
+        ngram_size: NgramsSize,
     ) -> (f64, usize) {
-        debug_assert!(
-            (1..=NGRAM_MAX_SIZE).contains(&ngram_length),
-            "ngram length {} is not in range 1..={NGRAM_MAX_SIZE}",
-            ngram_length
-        );
-
         let language_model_lock = self
             .models_storage
             .0
@@ -89,7 +82,7 @@ impl<'m, H: BuildHasher + Default> Detector<'m, H> {
 
         let Some(language_model) = language_model_lock
             .ngrams
-            .get(ngram_length - 1)
+            .get(ngram_size as usize)
             .filter(|m| !m.is_empty())
         else {
             return (language_model_lock.min_probability, 1);
@@ -114,11 +107,11 @@ impl<'m, H: BuildHasher + Default> Detector<'m, H> {
         &'a self,
         ngrams_iter: impl Iterator<Item = &'a str> + Clone,
         filtered_languages: &AHashSet<ScriptLanguage>,
-        ngram_length: usize,
+        ngram_size: NgramsSize,
     ) -> ScriptLanguageArr<(f64, usize)> {
         let mut probabilities = slang_arr_default_nc();
         for &language in filtered_languages.iter() {
-            let ngrams_sum_cnt = self.ngrams_sum_cnt(language, ngrams_iter.clone(), ngram_length);
+            let ngrams_sum_cnt = self.ngrams_sum_cnt(language, ngrams_iter.clone(), ngram_size);
             *probabilities.get_safe_unchecked_mut(language as usize) = ngrams_sum_cnt;
         }
         probabilities
@@ -127,18 +120,16 @@ impl<'m, H: BuildHasher + Default> Detector<'m, H> {
     fn compute<'a>(
         &'a self,
         words_iter: impl Iterator<Item = &'a [char]>,
-        ngram_length: usize,
         filtered_languages: &AHashSet<ScriptLanguage>,
+        ngram_size: NgramsSize,
     ) -> ScriptLanguageArr<(f64, usize)> {
-        let ngrams = prepare_ngrams(words_iter, ngram_length);
+        let ngrams = prepare_ngrams(words_iter, ngram_size);
 
-        let probabilities = self.probabilities_languages_ngrams(
+        self.probabilities_languages_ngrams(
             ngrams.iter().map(NgramString::as_str),
             filtered_languages,
-            ngram_length,
-        );
-
-        probabilities
+            ngram_size,
+        )
     }
 
     fn sum_up_probabilities(
@@ -212,8 +203,8 @@ impl<'m, H: BuildHasher + Default> Detector<'m, H> {
             .map(|ngram_length| {
                 self.compute(
                     words.iter().map(|wd| wd.buf.as_ref()),
-                    ngram_length,
                     &filtered_languages,
+                    NgramsSize::from(ngram_length - 1),
                 )
             })
             .collect();

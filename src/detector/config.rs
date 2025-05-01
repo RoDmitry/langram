@@ -1,4 +1,4 @@
-use crate::NGRAM_MAX_SIZE;
+use super::model::NGRAM_MAX_LEN;
 use ::core::{hash::BuildHasher, ops::RangeInclusive};
 use ::std::collections::HashSet;
 use alphabet_detector::ScriptLanguage;
@@ -17,8 +17,8 @@ impl<H: BuildHasher + Default> Default for DetectorConfig<H> {
         Self {
             languages: HashSet::with_hasher(H::default()),
             long_text_minlen: 120,
-            long_text_ngrams: 3..=NGRAM_MAX_SIZE,
-            short_text_ngrams: 1..=NGRAM_MAX_SIZE,
+            long_text_ngrams: 3..=NGRAM_MAX_LEN,
+            short_text_ngrams: 1..=NGRAM_MAX_LEN,
         }
     }
 }
@@ -91,14 +91,14 @@ impl<H: BuildHasher + Default> DetectorConfig<H> {
 
     #[inline]
     pub fn long_ngrams(mut self, long_text_ngrams: RangeInclusive<usize>) -> Self {
-        debug_assert!(*long_text_ngrams.start() > 0 && *long_text_ngrams.end() <= NGRAM_MAX_SIZE);
+        debug_assert!(*long_text_ngrams.start() > 0 && *long_text_ngrams.end() <= NGRAM_MAX_LEN);
         self.long_text_ngrams = long_text_ngrams;
         self
     }
 
     #[inline]
     pub fn short_ngrams(mut self, short_text_ngrams: RangeInclusive<usize>) -> Self {
-        debug_assert!(*short_text_ngrams.start() > 0 && *short_text_ngrams.end() <= NGRAM_MAX_SIZE);
+        debug_assert!(*short_text_ngrams.start() > 0 && *short_text_ngrams.end() <= NGRAM_MAX_LEN);
         self.short_text_ngrams = short_text_ngrams;
         self
     }

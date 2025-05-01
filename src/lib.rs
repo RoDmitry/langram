@@ -36,8 +36,6 @@ macro_rules! ahashset {
 
 pub use alphabet_detector::{Language, Script, ScriptLanguage, UcdScript};
 
-pub const NGRAM_MAX_SIZE: usize = 5;
-
 mod detector;
 mod file_model;
 mod fraction;

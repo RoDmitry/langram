@@ -1,9 +1,5 @@
-use super::{model::Model, Detector, DetectorConfig};
-use crate::{
-    detector::ModelNgrams,
-    file_model::{file_name_by_length, load_model, parse_model},
-    NGRAM_MAX_SIZE,
-};
+use super::{model::Model, Detector, DetectorConfig, NgramsSize};
+use crate::file_model::{load_model, parse_model};
 use ::core::hash::BuildHasher;
 use ::std::{collections::HashSet, ops::RangeInclusive, sync::RwLock};
 use alphabet_detector::{ScriptLanguage, ScriptLanguageArr};
@@ -33,18 +29,12 @@ impl ModelsStorage {
         models_storage
     }
 
-    fn load_model(&self, language: ScriptLanguage, ngram_length: usize) {
-        debug_assert!(
-            (1..=NGRAM_MAX_SIZE).contains(&ngram_length),
-            "ngram length {ngram_length} is not in range 1..={NGRAM_MAX_SIZE}"
-        );
-
+    fn load_model(&self, language: ScriptLanguage, ngram_size: NgramsSize) {
         let ngram_models = self.0.get_safe_unchecked(language as usize);
-        let index = ngram_length - 1;
         let ngram_models_guard = ngram_models.read().unwrap();
         if ngram_models_guard
             .ngrams
-            .get_safe_unchecked(index)
+            .get_safe_unchecked(ngram_size as usize)
             .capacity()
             > 0
         {
@@ -56,18 +46,15 @@ impl ModelsStorage {
         // second check here, because there can be multiple threads waiting for the write lock
         if ngram_models_guard
             .ngrams
-            .get_safe_unchecked(index)
+            .get_safe_unchecked(ngram_size as usize)
             .capacity()
             > 0
         {
             return;
         }
-        let file_model = load_model(language, file_name_by_length(ngram_length));
-        let ngram_model = match file_model {
-            Ok(m) => parse_model(m, ngram_length),
-            _ => ModelNgrams::with_capacity_and_hasher(1, Default::default()),
-        };
-        ngram_models_guard.update_ngram(ngram_model, index);
+        let file_model = load_model(language, ngram_size.into_file_name());
+        let ngram_model = parse_model(file_model, ngram_size);
+        ngram_models_guard.update_ngrams(ngram_model, ngram_size);
     }
 
     pub(super) fn load_models_from_languages<const PARALLEL: bool, HL: BuildHasher>(
@@ -78,11 +65,11 @@ impl ModelsStorage {
         let load = move |&language| {
             // always load unigrams
             if *ngram_length_range.start() > 1 {
-                self.load_model(language, 1);
+                self.load_model(language, NgramsSize::Uni);
             }
-            ngram_length_range
-                .clone()
-                .for_each(|ngram_length| self.load_model(language, ngram_length));
+            ngram_length_range.clone().for_each(|ngram_length| {
+                self.load_model(language, NgramsSize::from(ngram_length - 1))
+            });
         };
 
         if PARALLEL {
