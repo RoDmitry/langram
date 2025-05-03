@@ -256,8 +256,8 @@ fn test_mock_probabilities_languages_ngrams(
         NgramsSize::from(ngrams[0].chars().count() - 1),
     );
 
-    for (language, (probability, _cnt)) in probabilities.into_iter().enumerate() {
-        if probability.is_zero() {
+    for (language, (probability, cnt)) in probabilities.into_iter().enumerate() {
+        if cnt == 0 {
             continue;
         }
         let language = ScriptLanguage::transmute_from_usize(language);

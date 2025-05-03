@@ -65,7 +65,9 @@ pub(crate) fn parse_model<Ngram: NgramFromChars + Eq + Hash, NU: NgramsUnpacker>
 ) -> ModelNgrams<Ngram> {
     match file_model {
         Ok(m) => {
-            let mut res = ModelNgrams::<Ngram>::with_capacity_and_hasher(m.0, Default::default());
+            // somehow extra initial space, makes detection faster, and gives more stable benchmark results
+            let mut res =
+                ModelNgrams::<Ngram>::with_capacity_and_hasher(m.0 << 1, Default::default());
             for (fraction, ngrams) in m.1 {
                 let floating_point_value = fraction.to_f64().ln();
                 for ngram in NU::unpack(&ngrams, ngram_size).to_iter() {
