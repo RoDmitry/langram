@@ -71,6 +71,6 @@ mod file_model;
 mod fraction;
 mod ngrams;
 
-pub use detector::{Detector, DetectorConfig, ModelsStorage};
+pub use detector::{Detector, DetectorConfig, ModelsStorage, NgramSize};
 pub use file_model::FileModel;
 pub use fraction::Fraction;

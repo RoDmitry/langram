@@ -197,7 +197,7 @@ fn test_mock_ngrams_sum_cnt(
     let (ngrams_sum, ngrams_cnt) = detector.ngrams_sum_cnt(
         English,
         ngrams.iter().copied(),
-        NgramsSize::from(ngrams[0].chars().count() - 1),
+        NgramSize::from(ngrams[0].chars().count() - 1),
     );
 
     assert!(
@@ -253,7 +253,7 @@ fn test_mock_probabilities_languages_ngrams(
     let probabilities = detector.probabilities_languages_ngrams(
         ngrams.iter().copied(),
         &languages,
-        NgramsSize::from(ngrams[0].chars().count() - 1),
+        NgramSize::from(ngrams[0].chars().count() - 1),
     );
 
     for (language, (probability, cnt)) in probabilities.into_iter().enumerate() {

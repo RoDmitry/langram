@@ -1,14 +1,40 @@
-use super::model::NGRAM_MAX_LEN;
-use ::core::{hash::BuildHasher, ops::RangeInclusive};
+use super::NgramSize;
+use ::core::hash::BuildHasher;
 use ::std::collections::HashSet;
 use alphabet_detector::ScriptLanguage;
+use arrayvec::ArrayVec;
+use strum::EnumCount;
+
+pub(super) type TextNgramSizes = ArrayVec<NgramSize, { NgramSize::COUNT }>;
+
+pub(super) trait TextNgramSizesTrait: Sized {
+    fn merge(&mut self, ngram_sizes: impl Iterator<Item = NgramSize>);
+    fn new_merged(ngram_sizes: impl Iterator<Item = NgramSize>) -> Self;
+}
+
+impl TextNgramSizesTrait for TextNgramSizes {
+    fn merge(&mut self, ngram_sizes: impl Iterator<Item = NgramSize>) {
+        for ngram_size in ngram_sizes {
+            if !self.contains(&ngram_size) {
+                self.push(ngram_size);
+            }
+        }
+        self.sort_unstable();
+    }
+    #[inline]
+    fn new_merged(ngram_sizes: impl Iterator<Item = NgramSize>) -> Self {
+        let mut new = Self::new_const();
+        new.merge(ngram_sizes);
+        new
+    }
+}
 
 #[derive(Debug)]
 pub struct DetectorConfig<H: BuildHasher + Default> {
     pub languages: HashSet<ScriptLanguage, H>,
     pub(super) long_text_minlen: usize,
-    pub(super) long_text_ngrams: RangeInclusive<usize>,
-    pub(super) short_text_ngrams: RangeInclusive<usize>,
+    pub(super) long_text_ngrams: TextNgramSizes,
+    pub(super) short_text_ngrams: TextNgramSizes,
 }
 
 impl<H: BuildHasher + Default> Default for DetectorConfig<H> {
@@ -17,8 +43,26 @@ impl<H: BuildHasher + Default> Default for DetectorConfig<H> {
         Self {
             languages: HashSet::with_hasher(H::default()),
             long_text_minlen: 120,
-            long_text_ngrams: 3..=NGRAM_MAX_LEN,
-            short_text_ngrams: 1..=NGRAM_MAX_LEN,
+            long_text_ngrams: TextNgramSizes::new_merged(
+                [
+                    NgramSize::Tri,
+                    NgramSize::Quadri,
+                    NgramSize::Five,
+                    NgramSize::Word,
+                ]
+                .into_iter(),
+            ),
+            short_text_ngrams: TextNgramSizes::new_merged(
+                [
+                    NgramSize::Uni,
+                    NgramSize::Bi,
+                    NgramSize::Tri,
+                    NgramSize::Quadri,
+                    NgramSize::Five,
+                    NgramSize::Word,
+                ]
+                .into_iter(),
+            ),
         }
     }
 }
@@ -53,8 +97,17 @@ impl<H: BuildHasher + Default> DetectorConfig<H> {
     /// Faster, but lower accuracy
     #[inline]
     pub fn max_trigrams(mut self) -> Self {
-        self.long_text_ngrams = 3..=3;
-        self.short_text_ngrams = 1..=3;
+        self.long_text_ngrams =
+            TextNgramSizes::new_merged([NgramSize::Tri, NgramSize::Word].into_iter());
+        self.short_text_ngrams = TextNgramSizes::new_merged(
+            [
+                NgramSize::Uni,
+                NgramSize::Bi,
+                NgramSize::Tri,
+                NgramSize::Word,
+            ]
+            .into_iter(),
+        );
         self
     }
 
@@ -90,16 +143,14 @@ impl<H: BuildHasher + Default> DetectorConfig<H> {
     }
 
     #[inline]
-    pub fn long_ngrams(mut self, long_text_ngrams: RangeInclusive<usize>) -> Self {
-        debug_assert!(*long_text_ngrams.start() > 0 && *long_text_ngrams.end() <= NGRAM_MAX_LEN);
-        self.long_text_ngrams = long_text_ngrams;
+    pub fn long_ngrams(mut self, ngrams: impl Iterator<Item = NgramSize>) -> Self {
+        self.long_text_ngrams = TextNgramSizes::new_merged(ngrams);
         self
     }
 
     #[inline]
-    pub fn short_ngrams(mut self, short_text_ngrams: RangeInclusive<usize>) -> Self {
-        debug_assert!(*short_text_ngrams.start() > 0 && *short_text_ngrams.end() <= NGRAM_MAX_LEN);
-        self.short_text_ngrams = short_text_ngrams;
+    pub fn short_ngrams(mut self, ngrams: impl Iterator<Item = NgramSize>) -> Self {
+        self.short_text_ngrams = TextNgramSizes::new_merged(ngrams);
         self
     }
 
@@ -107,5 +158,38 @@ impl<H: BuildHasher + Default> DetectorConfig<H> {
     pub fn minlen(mut self, long_text_minlen: usize) -> Self {
         self.long_text_minlen = long_text_minlen;
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{TextNgramSizes, TextNgramSizesTrait};
+    use crate::detector::NgramSize;
+
+    #[test]
+    fn test_ngram_sizes_merge() {
+        let mut ngrams = TextNgramSizes::new_merged([NgramSize::Tri, NgramSize::Bi].into_iter());
+        ngrams.merge(
+            [
+                NgramSize::Five,
+                NgramSize::Uni,
+                NgramSize::Bi,
+                NgramSize::Quadri,
+                NgramSize::Word,
+            ]
+            .into_iter(),
+        );
+
+        assert_eq!(
+            ngrams.as_slice(),
+            &[
+                NgramSize::Uni,
+                NgramSize::Bi,
+                NgramSize::Tri,
+                NgramSize::Quadri,
+                NgramSize::Five,
+                NgramSize::Word,
+            ]
+        );
     }
 }

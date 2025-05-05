@@ -1,7 +1,9 @@
-use super::{model::Model, Detector, DetectorConfig, NgramsSize};
+use super::{
+    config::TextNgramSizes, model::Model, Detector, DetectorConfig, NgramSize, TextNgramSizesTrait,
+};
 use crate::file_model::{load_model, parse_model, ChunksNgramsUnpacker, SpaceNgramsUnpacker};
 use ::core::hash::BuildHasher;
-use ::std::{collections::HashSet, ops::RangeInclusive, sync::RwLock};
+use ::std::{collections::HashSet, sync::RwLock};
 use alphabet_detector::{ScriptLanguage, ScriptLanguageArr};
 use debug_unsafe::slice::SliceGetter;
 #[cfg(not(target_family = "wasm"))]
@@ -30,10 +32,10 @@ impl ModelsStorage {
         models_storage
     }
 
-    fn load_model(&self, language: ScriptLanguage, ngram_size: NgramsSize) {
-        let ngram_models = self.0.get_safe_unchecked(language as usize);
-        let ngram_models_guard = ngram_models.read().unwrap();
-        if ngram_models_guard
+    pub(super) fn load_model(&self, language: ScriptLanguage, ngram_size: NgramSize) {
+        let lang_model = self.0.get_safe_unchecked(language as usize);
+        let lang_model_guard = lang_model.read().unwrap();
+        if lang_model_guard
             .ngrams
             .get_safe_unchecked(ngram_size as usize)
             .capacity()
@@ -42,10 +44,10 @@ impl ModelsStorage {
             return;
         }
 
-        drop(ngram_models_guard);
-        let mut ngram_models_guard = ngram_models.write().unwrap();
+        drop(lang_model_guard);
+        let mut lang_model_guard = lang_model.write().unwrap();
         // second check here, because there can be multiple threads waiting for the write lock
-        if ngram_models_guard
+        if lang_model_guard
             .ngrams
             .get_safe_unchecked(ngram_size as usize)
             .capacity()
@@ -55,42 +57,50 @@ impl ModelsStorage {
         }
         let file_model = load_model(language, ngram_size.into_file_name());
         let ngram_model = parse_model::<_, ChunksNgramsUnpacker>(file_model, ngram_size);
-        ngram_models_guard.update_ngrams(ngram_model, ngram_size);
+        lang_model_guard.update_ngrams(ngram_model, ngram_size);
     }
 
-    fn load_wordgram_model(&self, language: ScriptLanguage) {
-        let ngram_models = self.0.get_safe_unchecked(language as usize);
-        let ngram_models_guard = ngram_models.read().unwrap();
-        if ngram_models_guard.wordgrams.capacity() > 0 {
+    pub(super) fn load_wordgram_model(&self, language: ScriptLanguage) {
+        let lang_model = self.0.get_safe_unchecked(language as usize);
+        let lang_model_guard = lang_model.read().unwrap();
+        if lang_model_guard.wordgrams.capacity() > 0 {
             return;
         }
 
-        drop(ngram_models_guard);
-        let mut ngram_models_guard = ngram_models.write().unwrap();
+        drop(lang_model_guard);
+        let mut lang_model_guard = lang_model.write().unwrap();
         // second check here, because there can be multiple threads waiting for the write lock
-        if ngram_models_guard.wordgrams.capacity() > 0 {
+        if lang_model_guard.wordgrams.capacity() > 0 {
             return;
         }
-        let file_model = load_model(language, NgramsSize::Word.into_file_name());
-        let wordgram_model = parse_model::<_, SpaceNgramsUnpacker>(file_model, NgramsSize::Word);
-        ngram_models_guard.update_wordgrams(wordgram_model);
+        let file_model = load_model(language, NgramSize::Word.into_file_name());
+        let wordgram_model = parse_model::<_, SpaceNgramsUnpacker>(file_model, NgramSize::Word);
+        lang_model_guard.update_wordgrams(wordgram_model);
     }
 
-    pub(super) fn load_models_from_languages<const PARALLEL: bool, HL: BuildHasher>(
+    pub(super) fn load_models_for_languages<const PARALLEL: bool, HL: BuildHasher>(
         &self,
-        ngram_length_range: RangeInclusive<usize>,
+        mut ngram_sizes: TextNgramSizes,
         languages: &HashSet<ScriptLanguage, HL>,
     ) {
+        // always load unigrams
+        if *ngram_sizes.first().unwrap() != NgramSize::Uni {
+            ngram_sizes.merge([NgramSize::Uni].into_iter());
+        }
+
+        let wordgrams_enabled = *ngram_sizes.last().unwrap() == NgramSize::Word;
+        if wordgrams_enabled {
+            ngram_sizes.pop();
+        }
+
         let load = move |&language| {
-            // always load unigrams
-            if *ngram_length_range.start() > 1 {
-                self.load_model(language, NgramsSize::Uni);
-            }
-            ngram_length_range.clone().for_each(|ngram_length| {
-                self.load_model(language, NgramsSize::from(ngram_length - 1))
+            ngram_sizes.iter().for_each(|&ngram_size| {
+                self.load_model(language, ngram_size);
             });
 
-            self.load_wordgram_model(language);
+            if wordgrams_enabled {
+                self.load_wordgram_model(language);
+            }
         };
 
         if PARALLEL {
@@ -98,6 +108,16 @@ impl ModelsStorage {
         } else {
             languages.iter().for_each(load);
         };
+    }
+
+    #[inline]
+    pub(super) fn load_unigram_models_for_languages<HL: BuildHasher>(
+        &self,
+        languages: &HashSet<ScriptLanguage, HL>,
+    ) {
+        languages.iter().for_each(|&language| {
+            self.load_model(language, NgramSize::Uni);
+        });
     }
 
     /// Drops all models loaded

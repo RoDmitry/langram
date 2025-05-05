@@ -1,5 +1,5 @@
 use crate::{
-    detector::{ModelNgrams, NgramFromChars, NgramsSize},
+    detector::{ModelNgrams, NgramFromChars, NgramSize},
     fraction::Fraction,
 };
 use ::std::{
@@ -42,26 +42,26 @@ pub(crate) struct ChunksNgramsUnpacker;
 pub(crate) struct SpaceNgramsUnpacker;
 
 pub(crate) trait NgramsUnpacker: Sized {
-    fn unpack<'a>(ngrams: &'a str, ngram_size: NgramsSize) -> impl IntoIteratorBorrowed<'a>;
+    fn unpack<'a>(ngrams: &'a str, ngram_size: NgramSize) -> impl IntoIteratorBorrowed<'a>;
 }
 
 impl NgramsUnpacker for ChunksNgramsUnpacker {
     #[inline(always)]
-    fn unpack<'a>(ngrams: &'a str, ngram_size: NgramsSize) -> impl IntoIteratorBorrowed<'a> {
+    fn unpack<'a>(ngrams: &'a str, ngram_size: NgramSize) -> impl IntoIteratorBorrowed<'a> {
         ngrams.chars().chunks(ngram_size as usize + 1)
     }
 }
 
 impl NgramsUnpacker for SpaceNgramsUnpacker {
     #[inline(always)]
-    fn unpack<'a>(ngrams: &'a str, _ngram_size: NgramsSize) -> impl IntoIteratorBorrowed<'a> {
+    fn unpack<'a>(ngrams: &'a str, _ngram_size: NgramSize) -> impl IntoIteratorBorrowed<'a> {
         ngrams.split(' ').map(|s| s.chars())
     }
 }
 
 pub(crate) fn parse_model<Ngram: NgramFromChars + Eq + Hash, NU: NgramsUnpacker>(
     file_model: io::Result<FileModel>,
-    ngram_size: NgramsSize,
+    ngram_size: NgramSize,
 ) -> ModelNgrams<Ngram> {
     match file_model {
         Ok(m) => {
@@ -101,10 +101,10 @@ pub(crate) fn load_model(language: ScriptLanguage, file_name: &str) -> std::io::
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::detector::NgramsSize;
+    use crate::detector::NgramSize;
 
     #[test]
     fn test_load_model() {
-        load_model(ScriptLanguage::English, NgramsSize::Uni.into_file_name()).unwrap();
+        load_model(ScriptLanguage::English, NgramSize::Uni.into_file_name()).unwrap();
     }
 }

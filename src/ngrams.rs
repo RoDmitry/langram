@@ -1,4 +1,4 @@
-use crate::detector::NgramsSize;
+use crate::detector::NgramSize;
 use ahash::AHashSet;
 use arraystring::{typenum::U20, ArrayString};
 
@@ -6,7 +6,7 @@ pub(crate) type NgramString = ArrayString<U20>;
 
 pub(crate) fn prepare_ngrams<'a>(
     words: impl Iterator<Item = &'a [char]>,
-    ngram_size: NgramsSize,
+    ngram_size: NgramSize,
 ) -> Vec<NgramString> {
     let mut ngrams_tmp = AHashSet::new();
     let mut ngrams = Vec::new();

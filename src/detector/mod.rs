@@ -4,6 +4,7 @@ use ahash::AHashSet;
 use alphabet_detector::{
     fulltext_filter_with_margin, slang_arr_default_nc, ScriptLanguage, ScriptLanguageArr,
 };
+use config::TextNgramSizesTrait;
 use debug_unsafe::slice::SliceGetter;
 use fraction::Zero;
 
@@ -14,9 +15,10 @@ mod storage;
 mod tests;
 
 pub use config::DetectorConfig;
+pub use model::NgramSize;
 #[cfg(test)]
 pub(crate) use model::NGRAM_MAX_LEN;
-pub(crate) use model::{ModelNgrams, NgramFromChars, NgramsSize};
+pub(crate) use model::{ModelNgrams, NgramFromChars};
 pub use storage::ModelsStorage;
 
 pub struct Detector<'m, H: BuildHasher + Default> {
@@ -38,16 +40,8 @@ impl<'m, H: BuildHasher + Default> Detector<'m, H> {
     where
         H: Sync,
     {
-        let min_ngram = *self
-            .config
-            .long_text_ngrams
-            .start()
-            .min(self.config.short_text_ngrams.start());
-        let max_ngram = *self
-            .config
-            .long_text_ngrams
-            .end()
-            .max(self.config.short_text_ngrams.end());
+        let mut ngram_sizes = self.config.short_text_ngrams.clone();
+        ngram_sizes.merge(self.config.long_text_ngrams.iter().copied());
 
         #[cfg(not(target_family = "wasm"))]
         const PARALLEL: bool = true;
@@ -55,10 +49,7 @@ impl<'m, H: BuildHasher + Default> Detector<'m, H> {
         const PARALLEL: bool = false;
 
         self.models_storage
-            .load_models_from_languages::<PARALLEL, _>(
-                min_ngram..=max_ngram,
-                &self.config.languages,
-            );
+            .load_models_for_languages::<PARALLEL, _>(ngram_sizes, &self.config.languages);
     }
 
     /// Drops all models loaded
@@ -71,7 +62,7 @@ impl<'m, H: BuildHasher + Default> Detector<'m, H> {
         &'a self,
         language: ScriptLanguage,
         ngrams_iter: impl Iterator<Item = &'a str>,
-        ngram_size: NgramsSize,
+        ngram_size: NgramSize,
     ) -> (f64, usize) {
         let language_model_lock = self
             .models_storage
@@ -139,10 +130,11 @@ impl<'m, H: BuildHasher + Default> Detector<'m, H> {
         &'a self,
         ngrams_iter: impl Iterator<Item = &'a str> + Clone,
         filtered_languages: &AHashSet<ScriptLanguage>,
-        ngram_size: NgramsSize,
+        ngram_size: NgramSize,
     ) -> ScriptLanguageArr<(f64, usize)> {
         let mut probabilities = slang_arr_default_nc();
         for &language in filtered_languages.iter() {
+            self.models_storage.load_model(language, ngram_size);
             let ngrams_sum_cnt = self.ngrams_sum_cnt(language, ngrams_iter.clone(), ngram_size);
             *probabilities.get_safe_unchecked_mut(language as usize) = ngrams_sum_cnt;
         }
@@ -156,19 +148,24 @@ impl<'m, H: BuildHasher + Default> Detector<'m, H> {
     ) -> ScriptLanguageArr<(f64, usize)> {
         let mut probabilities = slang_arr_default_nc();
         for &language in filtered_languages.iter() {
+            self.models_storage.load_wordgram_model(language);
             let ngrams_sum_cnt = self.wordgrams_sum_cnt(language, ngrams_iter.clone());
             *probabilities.get_safe_unchecked_mut(language as usize) = ngrams_sum_cnt;
         }
         probabilities
     }
 
+    #[inline]
     fn compute<'a>(
         &'a self,
         words_iter: impl Iterator<Item = &'a [char]>,
         filtered_languages: &AHashSet<ScriptLanguage>,
-        ngram_size: NgramsSize,
+        ngram_size: NgramSize,
     ) -> ScriptLanguageArr<(f64, usize)> {
         let ngrams = prepare_ngrams(words_iter, ngram_size);
+        if ngrams.is_empty() {
+            return slang_arr_default_nc();
+        }
 
         self.probabilities_languages_ngrams(
             ngrams.iter().map(NgramString::as_str),
@@ -177,6 +174,7 @@ impl<'m, H: BuildHasher + Default> Detector<'m, H> {
         )
     }
 
+    #[inline]
     fn sum_up_probabilities(
         probabilities: Vec<ScriptLanguageArr<(f64, usize)>>,
         filtered_languages: AHashSet<ScriptLanguage>,
@@ -224,7 +222,7 @@ impl<'m, H: BuildHasher + Default> Detector<'m, H> {
 
         let character_count: usize = words.iter().map(|wd| wd.buf.len()).sum();
 
-        let ngram_length_range = if character_count >= self.config.long_text_minlen {
+        let mut ngram_sizes = if character_count >= self.config.long_text_minlen {
             self.config.long_text_ngrams.clone()
         } else {
             self.config.short_text_ngrams.clone()
@@ -237,28 +235,34 @@ impl<'m, H: BuildHasher + Default> Detector<'m, H> {
                 .collect();
         } */
 
-        self.models_storage.load_models_from_languages::<false, _>(
-            ngram_length_range.clone(),
-            &filtered_languages,
-        );
+        // always preload unigrams
+        self.models_storage
+            .load_unigram_models_for_languages(&filtered_languages);
 
-        let mut probabilities: Vec<_> = ngram_length_range
+        let wordgrams_enabled = *ngram_sizes.last().unwrap() == NgramSize::Word;
+        if wordgrams_enabled {
+            ngram_sizes.pop();
+        }
+
+        let mut probabilities: Vec<_> = ngram_sizes
             .into_iter()
-            .filter(|i| *i <= character_count)
-            .map(|ngram_length| {
+            // .filter(|&ns| (ns as usize) < character_count)
+            .map(|ngram_size| {
                 self.compute(
                     words.iter().map(|wd| wd.buf.as_ref()),
                     &filtered_languages,
-                    NgramsSize::from(ngram_length - 1),
+                    ngram_size,
                 )
             })
             .collect();
 
-        let wordgrams: Vec<String> = words.iter().map(|wd| wd.buf.iter().collect()).collect();
-        probabilities.push(self.probabilities_languages_wordgrams(
-            wordgrams.iter().map(|s| s.as_str()),
-            &filtered_languages,
-        ));
+        if wordgrams_enabled {
+            let wordgrams: Vec<String> = words.iter().map(|wd| wd.buf.iter().collect()).collect();
+            probabilities.push(self.probabilities_languages_wordgrams(
+                wordgrams.iter().map(|s| s.as_str()),
+                &filtered_languages,
+            ));
+        }
 
         let mut probabilities_sums = Self::sum_up_probabilities(probabilities, filtered_languages);
 

@@ -23,6 +23,7 @@ path = "src/lib.rs"
 alphabet_detector = "0.6"
 # alphabet_detector = { path = "../alphabet_detector", version = "0.6" }
 arraystring = "0.3"
+arrayvec = "0.7"
 atoi_simd = "0.16"
 brotli = "8"
 compact_str = "0.9"
@@ -34,6 +35,8 @@ rustc-hash = "2"
 serde = { version = "1", features = ["derive"] }
 serde_encom = "0.3"
 serde_map = "0.2"
+strum = "0.27"
+strum_macros = "0.27"
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 ahash = "0.8"

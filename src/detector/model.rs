@@ -2,9 +2,10 @@ use crate::ngrams::NgramString;
 use compact_str::CompactString;
 use debug_unsafe::slice::SliceGetter;
 use rustc_hash::FxHashMap;
+use strum::EnumCount;
+use strum_macros::EnumCount;
 
 pub(crate) const NGRAM_MAX_LEN: usize = 5;
-pub(crate) const NGRAMS_TOTAL_SIZE: usize = 6;
 
 pub(crate) type ModelNgrams<Ngram> = FxHashMap<Ngram, f64>;
 type ModelNgramsArr = [ModelNgrams<NgramString>; NGRAM_MAX_LEN];
@@ -27,10 +28,9 @@ impl NgramFromChars for CompactString {
     }
 }
 
-#[allow(dead_code)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, EnumCount)]
 #[repr(usize)]
-pub(crate) enum NgramsSize {
+pub enum NgramSize {
     Uni = 0,
     Bi = 1,
     Tri = 2,
@@ -39,20 +39,21 @@ pub(crate) enum NgramsSize {
     Word = 5,
 }
 
-impl From<usize> for NgramsSize {
+impl From<usize> for NgramSize {
     #[inline(always)]
     fn from(v: usize) -> Self {
         debug_assert!(
-            (0..NGRAMS_TOTAL_SIZE).contains(&v),
-            "NgramsSize {} is not in range 0..{NGRAMS_TOTAL_SIZE}",
-            v
+            (0..NgramSize::COUNT).contains(&v),
+            "NgramsSize {} is not in range 0..{}",
+            v,
+            NgramSize::COUNT
         );
 
         unsafe { core::mem::transmute(v) }
     }
 }
 
-impl NgramsSize {
+impl NgramSize {
     #[inline]
     pub(crate) fn into_file_name(self) -> &'static str {
         match self {
@@ -98,12 +99,12 @@ impl Model {
     pub(super) fn update_ngrams(
         &mut self,
         model_ngrams: ModelNgrams<NgramString>,
-        ngrams_size: NgramsSize,
+        ngram_size: NgramSize,
     ) {
-        if matches!(ngrams_size, NgramsSize::Uni) {
+        if matches!(ngram_size, NgramSize::Uni) {
             self.ngram_min_probability = Self::count_min_probability(&model_ngrams);
         }
-        *self.ngrams.get_safe_unchecked_mut(ngrams_size as usize) = model_ngrams;
+        *self.ngrams.get_safe_unchecked_mut(ngram_size as usize) = model_ngrams;
     }
 
     #[inline]
@@ -116,7 +117,7 @@ impl Model {
     #[inline]
     pub(super) fn new(ngrams: ModelNgramsArr, wordgrams: ModelNgrams<CompactString>) -> Self {
         let ngram_min_probability =
-            Self::count_min_probability(ngrams.get_safe_unchecked(NgramsSize::Uni as usize));
+            Self::count_min_probability(ngrams.get_safe_unchecked(NgramSize::Uni as usize));
         let wordgram_min_probability = Self::count_min_probability(&wordgrams);
 
         Self {
