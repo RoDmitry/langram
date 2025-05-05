@@ -44,12 +44,11 @@ const MEM_LIMIT_SLEEP: usize = 6 * 1024 * 1024 * 1024;
 
 fn process(path: DirEntry, langs_seen: Arc<Mutex<ScriptLanguageArr<bool>>>, out_path: PathBuf) {
     let file_name = path.file_name().into_string().unwrap();
-    println!("*{}* New", file_name);
+    println!("*{file_name}* New");
 
     while ALLOCATOR.allocated() > MEM_LIMIT_SLEEP {
         println!(
-            "*{}* Mem allocated: {}MB Sleeping...",
-            file_name,
+            "*{file_name}* Mem allocated: {}MB Sleeping...",
             ALLOCATOR.allocated() / (1024 * 1024)
         );
         thread::sleep(Duration::from_secs(15));
@@ -62,14 +61,14 @@ fn process(path: DirEntry, langs_seen: Arc<Mutex<ScriptLanguageArr<bool>>>, out_
 
     {
         let Some(lang) = ScriptLanguage::from_str(&file_name) else {
-            panic!("*{}* Not found lang", file_name);
+            panic!("*{file_name}* Not found lang");
         };
         {
             let mut guard = langs_seen.lock().unwrap();
             let lang_seen = guard.get_mut(lang as usize).unwrap();
             if *lang_seen {
                 drop(guard);
-                panic!("*{}* Have already seen lang: {:?}", file_name, lang);
+                panic!("*{file_name}* Have already seen lang: {lang:?}");
             }
             *lang_seen = true;
         }
@@ -77,7 +76,7 @@ fn process(path: DirEntry, langs_seen: Arc<Mutex<ScriptLanguageArr<bool>>>, out_
         let script = UcdScript::from(lang);
         let langs = ScriptLanguage::all_with_script(script);
         if langs.len() == 1 {
-            println!("*{}* SKIP single lang {:?} in script", file_name, lang);
+            println!("*{file_name}* SKIP single lang {lang:?} in script");
             return;
         }
         // TODO: rm this filter
@@ -91,15 +90,15 @@ fn process(path: DirEntry, langs_seen: Arc<Mutex<ScriptLanguageArr<bool>>>, out_
 
         let out_mod_path = out_path.join(lang.into_str());
         if out_mod_path.join("unigrams.encom.br").exists() {
-            println!("*{}* EXISTS {:?}", file_name, lang);
+            println!("*{file_name}* EXISTS {lang:?}");
             return;
         }
-        println!("*{}* started {:?}", file_name, lang);
+        println!("*{file_name}* started {lang:?}");
 
         let file = BufReader::new(File::open(path.path()).expect("open failed"));
         let ch_iter = file.chars_chunks(b'\n').map(|v| (0, v.unwrap()));
         let result = langram_train::create_model_and_write_files(&out_mod_path, ch_iter, lang);
-        println!("*{}* done model {:?}", file_name, result);
+        println!("*{file_name}* done model {result:?}");
 
         /* {
             let file_path = out_mod_path.join("mod.rs");
