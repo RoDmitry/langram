@@ -250,10 +250,13 @@ fn test_mock_probabilities_languages_ngrams(
         DetectorConfig::with_languages(languages.clone().into()),
         &MOCK_MODELS_ENGLISH_AND_GERMAN,
     );
-    let probabilities = detector.probabilities_languages_ngrams(
+
+    let mut probabilities = slang_arr_default::<(f64, usize)>();
+    detector.probabilities_languages_ngrams(
         ngrams.iter().copied(),
         &languages,
         NgramSize::from(ngrams[0].chars().count() - 1),
+        &mut probabilities,
     );
 
     for (language, (probability, cnt)) in probabilities.into_iter().enumerate() {

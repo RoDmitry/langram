@@ -20,6 +20,7 @@ name = "langram"
 path = "src/lib.rs"
 
 [dependencies]
+ahash = "0.8"
 alphabet_detector = "0.6"
 # alphabet_detector = { path = "../alphabet_detector", version = "0.6" }
 arraystring = "0.3"
@@ -39,7 +40,6 @@ strum = "0.27"
 strum_macros = "0.27"
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-ahash = "0.8"
 rayon = "1"
 
 [dev-dependencies]

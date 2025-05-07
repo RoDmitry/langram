@@ -9,24 +9,29 @@
 //!
 //! # Example
 //! ```
-//! use ::std::sync::LazyLock;
 //! use langram::*;
+//!
+//! let models_storage = ModelsStorage::default();
+//! let config = DetectorConfig::new_all_languages();
+//! let detector = Detector::new(config, &models_storage);
+//! // preload models for faster detection
+//! detector.preload_models();
+//!
+//! // single thread
+//! let text = "text";
+//! let result = detector.detect_top_one(text, 0.0);
+//!
+//! // or multithreaded (rayon for example)
 //! use rayon::iter::IntoParallelRefIterator;
 //! use rayon::iter::ParallelIterator;
 //!
-//! static LANGRAM_MODELS: LazyLock<ModelsStorage> = LazyLock::new(|| {
-//!     ModelsStorage::preloaded::<ahash::RandomState>(ScriptLanguage::all().collect())
-//! });
-//! let config = DetectorConfig::new_all_languages();
-//! let detector = Detector::new(config, &LANGRAM_MODELS);
 //! let texts = &["text1", "text2"];
-//! // multithreaded iter
-//! let result: Vec<_> = texts
+//! let results: Vec<_> = texts
 //!     .par_iter()
 //!     .map(|text| detector.detect_top_one(text, 0.0))
 //!     .collect();
 //! ```
-//! But `detector` has [other methods](struct.Detector.html#implementations)
+//! `detector` also has [other methods](struct.Detector.html#implementations)
 
 #[allow(unused_macros)]
 macro_rules! ahashmap {
