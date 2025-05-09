@@ -1,6 +1,6 @@
 use ::std::collections::HashSet;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use langram::{Detector, DetectorConfig, ModelsStorage, ScriptLanguage};
+use langram::{DetectorBuilder, ModelsStorage, ScriptLanguage};
 
 // This is the common subset of languages that is supported by all
 // language detection libraries in this benchmark.
@@ -46,43 +46,40 @@ fn benchmark_detector(c: &mut Criterion) {
     let mut group_all_preloaded = c.benchmark_group("Detector all languages preloaded");
 
     let models_storage = ModelsStorage::default();
-    let config_all_ngrams_all_languages = DetectorConfig::new_all_languages();
-    let detector_all_ngrams_all_languages =
-        Detector::new(config_all_ngrams_all_languages, &models_storage);
-    detector_all_ngrams_all_languages.preload_models();
+    let detector_all_languages_all_ngrams = DetectorBuilder::new(&models_storage).build();
+    detector_all_languages_all_ngrams.preload_models();
 
     group_all_preloaded.bench_function("all ngrams", |bencher| {
         bencher.iter(|| {
             SENTENCES.iter().for_each(|sentence| {
-                black_box(detector_all_ngrams_all_languages.detect_top_one(sentence, 0.0));
+                black_box(detector_all_languages_all_ngrams.detect_top_one(sentence, 0.0));
             });
         });
     });
 
-    let config_max_trigrams_all_languages = DetectorConfig::new_all_languages().max_trigrams();
-    let detector_max_trigrams_all_languages =
-        Detector::new(config_max_trigrams_all_languages, &models_storage);
+    let detector_all_languages_max_trigrams =
+        DetectorBuilder::new(&models_storage).max_trigrams().build();
     group_all_preloaded.bench_function("max trigrams", |bencher| {
         bencher.iter(|| {
             SENTENCES.iter().for_each(|sentence| {
-                black_box(detector_max_trigrams_all_languages.detect_top_one(sentence, 0.0));
+                black_box(detector_all_languages_max_trigrams.detect_top_one(sentence, 0.0));
             });
         });
     });
     group_all_preloaded.finish();
 
-    /* let mut group2 = c.benchmark_group("Detector with all languages in multiple threads");
-    group2.bench_function("max trigrams", |bencher| {
+    /* let mut group2 = c.benchmark_group("Detector all languages multiple threads");
+    group2.bench_function("all ngrams", |bencher| {
         bencher.iter(|| {
-            sentences.par_iter().for_each(|sentence| {
-                black_box(max_trigrams_detector_all_languages_preloaded.detect(*sentence));
+            SENTENCES.par_iter().for_each(|sentence| {
+                black_box(detector_all_languages_all_ngrams.detect_top_one(sentence, 0.0));
             });
         });
     });
-    group2.bench_function("all ngrams", |bencher| {
+    group2.bench_function("max trigrams", |bencher| {
         bencher.iter(|| {
-            sentences.par_iter().for_each(|sentence| {
-                black_box(all_ngrams_detector_all_languages_preloaded.detect(*sentence));
+            SENTENCES.par_iter().for_each(|sentence| {
+                black_box(detector_all_languages_max_trigrams.detect_top_one(sentence, 0.0));
             });
         });
     });
@@ -90,54 +87,54 @@ fn benchmark_detector(c: &mut Criterion) {
 
     let mut group_common_preloaded = c.benchmark_group("Detector common languages");
 
-    let config_all_ngrams_common_languages = DetectorConfig::with_languages(
-        COMMON_LANGUAGES
-            .iter()
-            .copied()
-            .collect::<HashSet<_, ahash::RandomState>>(),
-    );
-    let detector_all_ngrams_common_languages =
-        Detector::new(config_all_ngrams_common_languages, &models_storage);
+    let detector_common_languages_all_ngrams = DetectorBuilder::new(&models_storage)
+        .languages(
+            COMMON_LANGUAGES
+                .iter()
+                .copied()
+                .collect::<HashSet<_, ahash::RandomState>>(),
+        )
+        .build();
     group_common_preloaded.bench_function("all ngrams", |bencher| {
         bencher.iter(|| {
             SENTENCES.iter().for_each(|sentence| {
-                black_box(detector_all_ngrams_common_languages.detect_top_one(sentence, 0.0));
+                black_box(detector_common_languages_all_ngrams.detect_top_one(sentence, 0.0));
             });
         });
     });
 
-    let config_max_trigrams_common_languages = DetectorConfig::with_languages(
-        COMMON_LANGUAGES
-            .iter()
-            .copied()
-            .collect::<HashSet<_, ahash::RandomState>>(),
-    )
-    .max_trigrams();
-    let detector_max_trigrams_common_languages =
-        Detector::new(config_max_trigrams_common_languages, &models_storage);
+    let detector_common_languages_max_trigrams = DetectorBuilder::new(&models_storage)
+        .languages(
+            COMMON_LANGUAGES
+                .iter()
+                .copied()
+                .collect::<HashSet<_, ahash::RandomState>>(),
+        )
+        .max_trigrams()
+        .build();
     group_common_preloaded.bench_function("max trigrams", |bencher| {
         bencher.iter(|| {
             SENTENCES.iter().for_each(|sentence| {
-                black_box(detector_max_trigrams_common_languages.detect_top_one(sentence, 0.0));
+                black_box(detector_common_languages_max_trigrams.detect_top_one(sentence, 0.0));
             });
         });
     });
     group_common_preloaded.finish();
 
-    /* let mut group4 = c.benchmark_group("Detector with common languages in multiple threads");
-    group4.bench_function("max trigrams mode", |bencher| {
+    /* let mut group4 = c.benchmark_group("Detector common languages multiple threads");
+    group4.bench_function("all ngrams", |bencher| {
         bencher.iter(|| {
-            sentences.par_iter().for_each(|sentence| {
-                black_box(max_trigrams_detector_common_languages.detect(*sentence));
+            SENTENCES.par_iter().for_each(|sentence| {
+                black_box(
+                    detector_common_languages_all_ngrams.detect_top_one(sentence, 0.0)),
+                );
             });
         });
     });
-    group4.bench_function("all ngrams mode", |bencher| {
+    group4.bench_function("max trigrams", |bencher| {
         bencher.iter(|| {
-            sentences.par_iter().for_each(|sentence| {
-                black_box(
-                    all_ngrams_detector_common_languages.detect(*sentence),
-                );
+            SENTENCES.par_iter().for_each(|sentence| {
+                black_box(detector_common_languages_max_trigrams.detect_top_one(sentence, 0.0));
             });
         });
     });
@@ -147,16 +144,16 @@ fn benchmark_detector(c: &mut Criterion) {
 fn benchmark_preload_all_languages(c: &mut Criterion) {
     let mut group = c.benchmark_group("Detector preload");
     group.sample_size(10);
+
+    let models_storage = ModelsStorage::default();
+    let detector = DetectorBuilder::new(&models_storage).build();
     group.bench_function("all languages", |bencher| {
         bencher.iter(|| {
-            let models_storage = ModelsStorage::default();
-            let config_all_ngrams_all_languages = DetectorConfig::new_all_languages();
-            let detector = Detector::new(config_all_ngrams_all_languages, &models_storage);
             detector.preload_models();
+            detector.unload_models();
         })
     });
 }
 
 criterion_group!(benches, benchmark_detector, benchmark_preload_all_languages,);
-
 criterion_main!(benches);

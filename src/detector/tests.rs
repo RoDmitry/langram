@@ -1,6 +1,6 @@
-use super::{model::Model, *};
-use crate::ScriptLanguage::*;
-use ::std::{collections::HashSet, sync::LazyLock};
+use super::{builder::DetectorBuilder, model::Model, *};
+use crate::{ngram_size::NGRAM_MAX_LEN, ScriptLanguage::*};
+use ::std::sync::LazyLock;
 use ahash::AHashMap;
 use compact_str::CompactString;
 use float_cmp::approx_eq;
@@ -190,10 +190,9 @@ fn test_mock_ngrams_sum_cnt(
     expected_ngrams_sum: f64,
     expected_ngrams_cnt: usize,
 ) {
-    let detector = Detector::new(
-        DetectorConfig::with_languages(ahashset!(English)),
-        &MOCK_MODELS_ENGLISH_AND_GERMAN,
-    );
+    let detector = DetectorBuilder::new(&MOCK_MODELS_ENGLISH_AND_GERMAN)
+        .languages(ahashset!(English))
+        .build();
     let (ngrams_sum, ngrams_cnt) = detector.ngrams_sum_cnt(
         English,
         ngrams.iter().copied(),
@@ -246,10 +245,9 @@ fn test_mock_probabilities_languages_ngrams(
     expected_probabilities: AHashMap<ScriptLanguage, f64>,
 ) {
     let languages: AHashSet<ScriptLanguage> = ahashset!(English, German);
-    let detector = Detector::new(
-        DetectorConfig::with_languages(languages.clone().into()),
-        &MOCK_MODELS_ENGLISH_AND_GERMAN,
-    );
+    let detector = DetectorBuilder::new(&MOCK_MODELS_ENGLISH_AND_GERMAN)
+        .languages(languages.clone().into())
+        .build();
 
     let mut probabilities = slang_arr_default::<(f64, usize)>();
     detector.probabilities_languages_ngrams(
@@ -289,10 +287,9 @@ fn test_mock_probabilities_relative(
     text: &str,
     expected_probabilities: Vec<(ScriptLanguage, f64)>,
 ) {
-    let detector = Detector::new(
-        DetectorConfig::with_languages(ahashset!(English, German)),
-        &MOCK_MODELS_ENGLISH_AND_GERMAN,
-    );
+    let detector = DetectorBuilder::new(&MOCK_MODELS_ENGLISH_AND_GERMAN)
+        .languages(ahashset!(English, German))
+        .build();
 
     let mut probabilities = detector.probabilities_relative(text);
     probabilities
@@ -311,10 +308,7 @@ fn test_mock_probabilities_relative_no_filter(
     text: &str,
     expected_probabilities: Vec<(ScriptLanguage, f64)>,
 ) {
-    let detector = Detector::new(
-        DetectorConfig::new_all_languages(),
-        &MOCK_MODELS_ENGLISH_AND_GERMAN,
-    );
+    let detector = DetectorBuilder::new(&MOCK_MODELS_ENGLISH_AND_GERMAN).build();
 
     let mut probabilities = detector.probabilities_relative(text);
     probabilities
@@ -331,10 +325,9 @@ fn test_mock_probabilities_relative_no_filter(
     case("проарплап", None)
 )]
 fn test_mock_detect_top_one(word: &str, expected_language: Option<ScriptLanguage>) {
-    let detector = Detector::new(
-        DetectorConfig::with_languages(ahashset!(English, German)),
-        &MOCK_MODELS_ENGLISH_AND_GERMAN,
-    );
+    let detector = DetectorBuilder::new(&MOCK_MODELS_ENGLISH_AND_GERMAN)
+        .languages(ahashset!(English, German))
+        .build();
     let detected_language = detector.detect_top_one(word, 0.0);
     assert_eq!(detected_language, expected_language);
 }
@@ -605,10 +598,7 @@ fn test_detect_multiple_with_four_languages(
     // case(Arabic, "كيف حالك؟")
 )]
 fn test_detect_top_one(expected_language: ScriptLanguage, text: &str) {
-    let detector = Detector::new(
-        DetectorConfig::new_all_languages(),
-        &MODELS_ALL_LANGUAGES_PRELOADED,
-    );
+    let detector = DetectorBuilder::new(&MODELS_ALL_LANGUAGES_PRELOADED).build();
     assert_eq!(detector.detect_top_one(text, 0.0), Some(expected_language));
 }
 
@@ -623,8 +613,9 @@ fn test_detect_top_one(expected_language: ScriptLanguage, text: &str) {
     )
 )]
 fn test_detect_top_one_is_deterministic(text: &str, languages: AHashSet<ScriptLanguage>) {
-    let detector_config = DetectorConfig::with_languages(languages.clone().into());
-    let detector = Detector::new(detector_config, &MODELS_ALL_LANGUAGES_PRELOADED);
+    let detector = DetectorBuilder::new(&MODELS_ALL_LANGUAGES_PRELOADED)
+        .languages(languages.clone().into())
+        .build();
 
     let mut detected_languages = AHashSet::new();
     for _ in 0..100 {
@@ -682,28 +673,20 @@ fn assert_language_filtering_with_rules_text_panics(
 
 #[rstest(invalid_str, case(""), case(" \n  \t;"), case("3<856%)§"))]
 fn test_strings_without_letters(invalid_str: &str) {
-    let detector = Detector::new(
-        DetectorConfig::new_all_languages(),
-        &MODELS_ALL_LANGUAGES_PRELOADED,
-    );
+    let detector = DetectorBuilder::new(&MODELS_ALL_LANGUAGES_PRELOADED).build();
     assert_eq!(detector.detect_top_one(invalid_str, 0.0), None);
 }
 
 #[test]
 fn test_max_trigrams_mode() {
-    let detector_config = DetectorConfig::with_languages(ahashset!(English, German)).max_trigrams();
-    let detector = Detector::new(detector_config, &MODELS_ALL_LANGUAGES_PRELOADED);
+    let detector = DetectorBuilder::new(&MODELS_ALL_LANGUAGES_PRELOADED)
+        .languages(ahashset!(English, German))
+        .max_trigrams()
+        .build();
 
     assert!(detector.detect_top_one("bed", 0.0).is_some());
     assert!(detector.detect_top_one("be", 0.0).is_some());
     assert!(detector.detect_top_one("b", 0.0).is_some());
 
     assert!(detector.detect_top_one("", 0.0).is_none());
-}
-
-#[test]
-fn test_change_langs() {
-    let config_new = DetectorConfig::new_all_languages();
-    let config_hash = config_new.copy_with_languages(HashSet::new());
-    let _config_ahash = config_hash.languages(ahashset!(English));
 }

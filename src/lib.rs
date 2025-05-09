@@ -12,8 +12,7 @@
 //! use langram::*;
 //!
 //! let models_storage = ModelsStorage::default();
-//! let config = DetectorConfig::new_all_languages();
-//! let detector = Detector::new(config, &models_storage);
+//! let detector = DetectorBuilder::new(&models_storage).build();
 //! // preload models for faster detection
 //! detector.preload_models();
 //!
@@ -74,8 +73,10 @@ pub use alphabet_detector::{Language, Script, ScriptLanguage, UcdScript};
 mod detector;
 mod file_model;
 mod fraction;
+mod ngram_size;
 mod ngrams;
 
-pub use detector::{Detector, DetectorConfig, ModelsStorage, NgramSize};
+pub use detector::{Detector, DetectorBuilder, ModelsStorage};
 pub use file_model::FileModel;
 pub use fraction::Fraction;
+pub use ngram_size::NgramSize;

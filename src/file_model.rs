@@ -1,6 +1,7 @@
 use crate::{
-    detector::{ModelNgrams, NgramFromChars, NgramSize},
+    detector::{ModelNgrams, NgramFromChars},
     fraction::Fraction,
+    NgramSize,
 };
 use ::std::{
     hash::Hash,
@@ -82,6 +83,7 @@ pub(crate) fn parse_model<Ngram: NgramFromChars + Eq + Hash, NU: NgramsUnpacker>
 }
 
 pub(crate) fn load_model(language: ScriptLanguage, file_name: &str) -> std::io::Result<FileModel> {
+    // const, so it must be optimized out by the compiler
     if langram_models::MODELS_DIR.entries().len() < 2 {
         panic!("Models dir is empty. Path to `langram_models` crate must be changed.");
     }
@@ -101,7 +103,7 @@ pub(crate) fn load_model(language: ScriptLanguage, file_name: &str) -> std::io::
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::detector::NgramSize;
+    use crate::ngram_size::NgramSize;
 
     #[test]
     fn test_load_model() {

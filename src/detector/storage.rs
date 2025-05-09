@@ -1,9 +1,14 @@
-use super::{
-    config::TextNgramSizes, model::Model, Detector, DetectorConfig, NgramSize, TextNgramSizesTrait,
+use super::{builder::RealHasher, model::Model, DetectorBuilder, NgramSize};
+use crate::{
+    file_model::{load_model, parse_model, ChunksNgramsUnpacker, SpaceNgramsUnpacker},
+    ngram_size::{NgramSizes, NgramSizesTrait},
 };
-use crate::file_model::{load_model, parse_model, ChunksNgramsUnpacker, SpaceNgramsUnpacker};
 use ::core::hash::BuildHasher;
-use ::std::{collections::HashSet, sync::RwLock};
+use ::std::{
+    collections::HashSet,
+    fmt::{self, Debug},
+    sync::RwLock,
+};
 use alphabet_detector::{ScriptLanguage, ScriptLanguageArr};
 use debug_unsafe::slice::SliceGetter;
 #[cfg(not(target_family = "wasm"))]
@@ -21,13 +26,18 @@ impl Default for ModelsStorage {
     }
 }
 
+impl Debug for ModelsStorage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ModelsStorage").finish_non_exhaustive()
+    }
+}
+
 impl ModelsStorage {
-    pub fn preloaded<H: BuildHasher + Default + Sync>(
-        languages: HashSet<ScriptLanguage, H>,
-    ) -> Self {
+    pub fn preloaded<H: RealHasher>(languages: HashSet<ScriptLanguage, H>) -> Self {
         let models_storage = ModelsStorage::default();
-        let config = DetectorConfig::with_languages(languages);
-        let detector = Detector::new(config, &models_storage);
+        let detector = DetectorBuilder::new(&models_storage)
+            .languages(languages)
+            .build();
         detector.preload_models();
         models_storage
     }
@@ -78,10 +88,10 @@ impl ModelsStorage {
         lang_model_guard.update_wordgrams(wordgram_model);
     }
 
-    pub(super) fn load_models_for_languages<const PARALLEL: bool, HL: BuildHasher>(
+    pub(super) fn load_models_for_languages<const PARALLEL: bool, H: BuildHasher>(
         &self,
-        mut ngram_sizes: TextNgramSizes,
-        languages: &HashSet<ScriptLanguage, HL>,
+        mut ngram_sizes: NgramSizes,
+        languages: &HashSet<ScriptLanguage, H>,
     ) {
         // always load unigrams
         if *ngram_sizes.first().unwrap() != NgramSize::Uni {
@@ -111,9 +121,9 @@ impl ModelsStorage {
     }
 
     #[inline]
-    pub(super) fn load_unigram_models_for_languages<HL: BuildHasher>(
+    pub(super) fn load_unigram_models_for_languages<H: BuildHasher>(
         &self,
-        languages: &HashSet<ScriptLanguage, HL>,
+        languages: &HashSet<ScriptLanguage, H>,
     ) {
         languages.iter().for_each(|&language| {
             self.load_model(language, NgramSize::Uni);

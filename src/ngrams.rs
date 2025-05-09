@@ -1,4 +1,4 @@
-use crate::detector::NgramSize;
+use crate::NgramSize;
 use ahash::AHashSet;
 use arraystring::{typenum::U20, ArrayString};
 
@@ -25,7 +25,7 @@ pub(crate) fn prepare_ngrams<'a>(
 #[cfg(test)]
 mod tests {
     use super::NgramString;
-    use crate::detector::NGRAM_MAX_LEN;
+    use crate::ngram_size::NGRAM_MAX_LEN;
 
     #[test]
     fn test_ngram_string_size() {

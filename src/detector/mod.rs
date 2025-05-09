@@ -1,23 +1,24 @@
-use crate::ngrams::{prepare_ngrams, NgramString};
-use ::core::{cmp::Ordering, hash::BuildHasher};
+use crate::{
+    ngram_size::{NgramSize, NgramSizes, NgramSizesTrait},
+    ngrams::{prepare_ngrams, NgramString},
+};
+use ::core::cmp::Ordering;
+use ::std::collections::HashSet;
 use ahash::AHashSet;
 use alphabet_detector::{
     fulltext_filter_with_margin, slang_arr_default, ScriptLanguage, ScriptLanguageArr,
 };
-use config::TextNgramSizesTrait;
-use debug_unsafe::slice::SliceGetter;
+use debug_unsafe::{option::OptionUnwrapper, slice::SliceGetter};
 use fraction::Zero;
 
-mod config;
+mod builder;
 mod model;
 mod storage;
 #[cfg(test)]
 mod tests;
 
-pub use config::DetectorConfig;
-pub use model::NgramSize;
-#[cfg(test)]
-pub(crate) use model::NGRAM_MAX_LEN;
+pub use builder::DetectorBuilder;
+use builder::RealHasher;
 pub(crate) use model::{ModelNgrams, NgramFromChars};
 pub use storage::ModelsStorage;
 
@@ -33,27 +34,67 @@ impl ProbabilitiesAdder for (f64, usize) {
     }
 }
 
-pub struct Detector<'m, H: BuildHasher + Default> {
-    pub config: DetectorConfig<H>,
-    pub models_storage: &'m ModelsStorage,
+#[derive(Clone, Debug)]
+pub struct Detector<'m, H: RealHasher> {
+    models_storage: &'m ModelsStorage,
+    pub languages: HashSet<ScriptLanguage, H>,
+    pub long_text_minlen: usize,
+    long_text_ngrams: NgramSizes,
+    short_text_ngrams: NgramSizes,
 }
 
-impl<'m, H: BuildHasher + Default> Detector<'m, H> {
+impl<'m, H: RealHasher> Detector<'m, H> {
     #[inline]
-    pub fn new(config: DetectorConfig<H>, models_storage: &'m ModelsStorage) -> Self {
+    pub fn new(builder: DetectorBuilder<'m, H>) -> Self {
         Self {
-            config,
-            models_storage,
+            models_storage: builder.models_storage,
+            languages: builder.languages.unwrap_safe_unchecked(),
+            long_text_minlen: builder.long_text_minlen.unwrap_or(120),
+            long_text_ngrams: builder.long_text_ngrams.unwrap_or_else(|| {
+                NgramSizes::new_merged(
+                    [
+                        NgramSize::Tri,
+                        NgramSize::Quadri,
+                        NgramSize::Five,
+                        NgramSize::Word,
+                    ]
+                    .into_iter(),
+                )
+            }),
+            short_text_ngrams: builder.short_text_ngrams.unwrap_or_else(|| {
+                NgramSizes::new_merged(
+                    [
+                        NgramSize::Uni,
+                        NgramSize::Bi,
+                        NgramSize::Tri,
+                        NgramSize::Quadri,
+                        NgramSize::Five,
+                        NgramSize::Word,
+                    ]
+                    .into_iter(),
+                )
+            }),
+        }
+    }
+
+    #[inline]
+    pub fn clone_with_languages<H2: RealHasher>(
+        &self,
+        languages: HashSet<ScriptLanguage, H2>,
+    ) -> Detector<'m, H2> {
+        Detector {
+            models_storage: self.models_storage,
+            languages,
+            long_text_minlen: self.long_text_minlen,
+            long_text_ngrams: self.long_text_ngrams.clone(),
+            short_text_ngrams: self.short_text_ngrams.clone(),
         }
     }
 
     /// Preload models for the languages selected in the config of this detector
-    pub fn preload_models(&self)
-    where
-        H: Sync,
-    {
-        let mut ngram_sizes = self.config.short_text_ngrams.clone();
-        ngram_sizes.merge(self.config.long_text_ngrams.iter().copied());
+    pub fn preload_models(&self) {
+        let mut ngram_sizes = self.short_text_ngrams.clone();
+        ngram_sizes.merge(self.long_text_ngrams.iter().copied());
 
         #[cfg(not(target_family = "wasm"))]
         const PARALLEL: bool = true;
@@ -61,7 +102,7 @@ impl<'m, H: BuildHasher + Default> Detector<'m, H> {
         const PARALLEL: bool = false;
 
         self.models_storage
-            .load_models_for_languages::<PARALLEL, _>(ngram_sizes, &self.config.languages);
+            .load_models_for_languages::<PARALLEL, _>(ngram_sizes, &self.languages);
     }
 
     /// Drops all models loaded
@@ -220,7 +261,7 @@ impl<'m, H: BuildHasher + Default> Detector<'m, H> {
 
         let (words, langs) = fulltext_filter_with_margin::<Vec<char>, 95>(text.char_indices());
         let filtered_languages: AHashSet<_> = langs
-            .filter(|(l, _)| self.config.languages.contains(l))
+            .filter(|(l, _)| self.languages.contains(l))
             .map(|(l, _)| l) // todo: maybe use count?
             .collect();
 
@@ -235,10 +276,10 @@ impl<'m, H: BuildHasher + Default> Detector<'m, H> {
 
         let character_count: usize = words.iter().map(|wd| wd.buf.len()).sum();
 
-        let mut ngram_sizes = if character_count >= self.config.long_text_minlen {
-            self.config.long_text_ngrams.clone()
+        let mut ngram_sizes = if character_count >= self.long_text_minlen {
+            self.long_text_ngrams.clone()
         } else {
-            self.config.short_text_ngrams.clone()
+            self.short_text_ngrams.clone()
         };
 
         /* if character_count < ngram_length_range.start {

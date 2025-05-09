@@ -1,11 +1,10 @@
-use crate::ngrams::NgramString;
+use crate::{
+    ngram_size::{NgramSize, NGRAM_MAX_LEN},
+    ngrams::NgramString,
+};
 use compact_str::CompactString;
 use debug_unsafe::slice::SliceGetter;
 use rustc_hash::FxHashMap;
-use strum::EnumCount;
-use strum_macros::EnumCount;
-
-pub(crate) const NGRAM_MAX_LEN: usize = 5;
 
 pub(crate) type ModelNgrams<Ngram> = FxHashMap<Ngram, f64>;
 type ModelNgramsArr = [ModelNgrams<NgramString>; NGRAM_MAX_LEN];
@@ -25,45 +24,6 @@ impl NgramFromChars for CompactString {
     #[inline(always)]
     fn from_chars(chars: impl IntoIterator<Item = char>) -> Self {
         chars.into_iter().collect()
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, EnumCount)]
-#[repr(usize)]
-pub enum NgramSize {
-    Uni = 0,
-    Bi = 1,
-    Tri = 2,
-    Quadri = 3,
-    Five = 4,
-    Word = 5,
-}
-
-impl From<usize> for NgramSize {
-    #[inline(always)]
-    fn from(v: usize) -> Self {
-        debug_assert!(
-            (0..NgramSize::COUNT).contains(&v),
-            "NgramsSize {} is not in range 0..{}",
-            v,
-            NgramSize::COUNT
-        );
-
-        unsafe { core::mem::transmute(v) }
-    }
-}
-
-impl NgramSize {
-    #[inline]
-    pub(crate) fn into_file_name(self) -> &'static str {
-        match self {
-            Self::Uni => "unigrams.encom.br",
-            Self::Bi => "bigrams.encom.br",
-            Self::Tri => "trigrams.encom.br",
-            Self::Quadri => "quadrigrams.encom.br",
-            Self::Five => "fivegrams.encom.br",
-            Self::Word => "wordgrams.encom.br",
-        }
     }
 }
 
