@@ -28,7 +28,8 @@ arrayvec = "0.7"
 atoi_simd = "0.16"
 brotli = "8"
 compact_str = "0.9"
-debug_unsafe = "0.1"
+debug_unsafe = { version = "0.1.2", features = ["arraystring"] }
+# debug_unsafe = { path = "../debug_unsafe", version = "0.1", features = ["arraystring"] }
 fraction = "0.15"
 itertools = "0.14"
 langram_models = { path = "../langram_models", version = "0.0" }
@@ -38,6 +39,7 @@ serde_encom = "0.3"
 serde_map = "0.2"
 strum = "0.27"
 strum_macros = "0.27"
+tracing = "0.1"
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 rayon = "1"

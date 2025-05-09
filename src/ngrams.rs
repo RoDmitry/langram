@@ -1,6 +1,7 @@
 use crate::NgramSize;
 use ahash::AHashSet;
 use arraystring::{typenum::U20, ArrayString};
+use debug_unsafe::arraystring::ArrayStringFrom;
 
 pub(crate) type NgramString = ArrayString<U20>;
 
@@ -14,7 +15,9 @@ pub(crate) fn prepare_ngrams<'a>(
     for word in words {
         for ngram in word.windows(ngram_size as usize + 1) {
             if ngrams_tmp.insert(ngram) {
-                ngrams.push(NgramString::try_from_chars(ngram.iter().copied()).unwrap());
+                ngrams.push(NgramString::from_chars_safe_unchecked(
+                    ngram.iter().copied(),
+                ));
             }
         }
     }

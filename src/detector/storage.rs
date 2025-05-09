@@ -65,7 +65,7 @@ impl ModelsStorage {
         {
             return;
         }
-        let file_model = load_model(language, ngram_size.into_file_name());
+        let file_model = load_model(language, ngram_size);
         let ngram_model = parse_model::<_, ChunksNgramsUnpacker>(file_model, ngram_size);
         lang_model_guard.update_ngrams(ngram_model, ngram_size);
     }
@@ -83,7 +83,7 @@ impl ModelsStorage {
         if lang_model_guard.wordgrams.capacity() > 0 {
             return;
         }
-        let file_model = load_model(language, NgramSize::Word.into_file_name());
+        let file_model = load_model(language, NgramSize::Word);
         let wordgram_model = parse_model::<_, SpaceNgramsUnpacker>(file_model, NgramSize::Word);
         lang_model_guard.update_wordgrams(wordgram_model);
     }

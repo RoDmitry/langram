@@ -73,7 +73,7 @@ impl<'de> Visitor<'de> for FractionVisitor {
         let (parsed_numerator, len) = atoi_simd::parse_any(bytes)
             .map_err(|e| Error::invalid_value(Unexpected::Str(v), &e.to_string().as_str()))?;
 
-        if bytes[len] != b'/' {
+        if bytes.get(len).is_none_or(|&v| v != b'/') {
             return Err(Error::invalid_value(Unexpected::Str(v), &"'/'"));
         }
 

@@ -3,7 +3,7 @@ use crate::{
     ngrams::NgramString,
 };
 use compact_str::CompactString;
-use debug_unsafe::slice::SliceGetter;
+use debug_unsafe::{arraystring::ArrayStringFrom, slice::SliceGetter};
 use rustc_hash::FxHashMap;
 
 pub(crate) type ModelNgrams<Ngram> = FxHashMap<Ngram, f64>;
@@ -16,7 +16,7 @@ pub(crate) trait NgramFromChars: Sized {
 impl NgramFromChars for NgramString {
     #[inline(always)]
     fn from_chars(chars: impl IntoIterator<Item = char>) -> Self {
-        Self::try_from_chars(chars).unwrap()
+        Self::from_chars_safe_unchecked(chars)
     }
 }
 
