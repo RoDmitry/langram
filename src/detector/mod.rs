@@ -44,39 +44,47 @@ pub struct Detector<'m, H: RealHasher> {
 }
 
 impl<'m, H: RealHasher> Detector<'m, H> {
+    /// Will have all ngrams enabled if none selected
     #[inline]
-    pub fn new(builder: DetectorBuilder<'m, H>) -> Self {
+    fn new(builder: DetectorBuilder<'m, H>) -> Self {
         Self {
             models_storage: builder.models_storage,
-            languages: builder.languages.unwrap_safe_unchecked(),
+            languages: builder.languages,
             long_text_minlen: builder.long_text_minlen.unwrap_or(120),
-            long_text_ngrams: builder.long_text_ngrams.unwrap_or_else(|| {
-                NgramSizes::new_merged(
-                    [
-                        NgramSize::Tri,
-                        NgramSize::Quadri,
-                        NgramSize::Five,
-                        NgramSize::Word,
-                    ]
-                    .into_iter(),
-                )
-            }),
-            short_text_ngrams: builder.short_text_ngrams.unwrap_or_else(|| {
-                NgramSizes::new_merged(
-                    [
-                        NgramSize::Uni,
-                        NgramSize::Bi,
-                        NgramSize::Tri,
-                        NgramSize::Quadri,
-                        NgramSize::Five,
-                        NgramSize::Word,
-                    ]
-                    .into_iter(),
-                )
-            }),
+            long_text_ngrams: builder
+                .long_text_ngrams
+                .filter(|n| !n.is_empty())
+                .unwrap_or_else(|| {
+                    NgramSizes::new_merged(
+                        [
+                            NgramSize::Tri,
+                            NgramSize::Quadri,
+                            NgramSize::Five,
+                            NgramSize::Word,
+                        ]
+                        .into_iter(),
+                    )
+                }),
+            short_text_ngrams: builder
+                .short_text_ngrams
+                .filter(|n| !n.is_empty())
+                .unwrap_or_else(|| {
+                    NgramSizes::new_merged(
+                        [
+                            NgramSize::Uni,
+                            NgramSize::Bi,
+                            NgramSize::Tri,
+                            NgramSize::Quadri,
+                            NgramSize::Five,
+                            NgramSize::Word,
+                        ]
+                        .into_iter(),
+                    )
+                }),
         }
     }
 
+    /// Clone detector with new languages selected
     #[inline]
     pub fn clone_with_languages<H2: RealHasher>(
         &self,
@@ -91,7 +99,7 @@ impl<'m, H: RealHasher> Detector<'m, H> {
         }
     }
 
-    /// Preload models for the languages selected in the config of this detector
+    /// Preloads models for the languages selected in this detector
     pub fn preload_models(&self) {
         let mut ngram_sizes = self.short_text_ngrams.clone();
         ngram_sizes.merge(self.long_text_ngrams.iter().copied());
@@ -159,13 +167,14 @@ impl<'m, H: RealHasher> Detector<'m, H> {
             .read()
             .unwrap();
 
-        let language_model = &language_model_lock.wordgrams;
-        if language_model.is_empty() {
-            return (0.0, 0);
-        };
-
         let mut sum = 0.0;
         let mut cnt = 0;
+
+        let language_model = &language_model_lock.wordgrams;
+        if language_model.is_empty() {
+            return (sum, cnt);
+        };
+
         for ngram in ngrams_iter {
             let probability = language_model
                 .get(ngram)
@@ -249,11 +258,13 @@ impl<'m, H: RealHasher> Detector<'m, H> {
         res
     }
 
-    /// Returns probabilities for the given text.
+    /// Returns probabilities for the provided text.
     /// Each value is a logarithmic probability between a negative infinity and 0.0.
     ///
     /// Result is sorted by probabilities in a descending order.
-    /// If only single language is identified by `alphabet_detector`, the value 0.0 will be returned.
+    ///
+    /// If only a single language is identified by `alphabet_detector`,
+    /// the value 0.0 will be returned.
     pub fn probabilities(&self, text: &str) -> Vec<(ScriptLanguage, f64)> {
         if text.is_empty() {
             return Default::default();
@@ -270,7 +281,10 @@ impl<'m, H: RealHasher> Detector<'m, H> {
         }
 
         if filtered_languages.len() == 1 {
-            let lang = filtered_languages.into_iter().next().unwrap();
+            let lang = filtered_languages
+                .into_iter()
+                .next()
+                .unwrap_safe_unchecked();
             return vec![(lang, 0.0)];
         }
 
@@ -290,12 +304,12 @@ impl<'m, H: RealHasher> Detector<'m, H> {
         } */
 
         // always preload unigrams
-        if *ngram_sizes.first().unwrap() != NgramSize::Uni {
+        if *ngram_sizes.first().unwrap_safe_unchecked() != NgramSize::Uni {
             self.models_storage
                 .load_unigram_models_for_languages(&filtered_languages);
         }
 
-        let wordgrams_enabled = *ngram_sizes.last().unwrap() == NgramSize::Word;
+        let wordgrams_enabled = *ngram_sizes.last().unwrap_safe_unchecked() == NgramSize::Word;
         if wordgrams_enabled {
             ngram_sizes.pop();
         }
@@ -334,39 +348,42 @@ impl<'m, H: RealHasher> Detector<'m, H> {
         probabilities_sums
     }
 
-    /// Returns probabilities for the given text relative to other languages.
+    /// Returns probabilities for the provided text relative to other languages.
     /// Each value is a number between 0.0 and 1.0.
     ///
-    /// If only single language is identified by `alphabet_detector`, the value 1.0 will be returned.
+    /// If only a single language is identified by `alphabet_detector`,
+    /// the value 1.0 will be returned.
     pub fn probabilities_relative(&self, text: &str) -> Vec<(ScriptLanguage, f64)> {
         let mut probabilities = self.probabilities(text);
         transform_to_relative_probabilities(&mut probabilities);
         probabilities
     }
 
-    /// Detects the top one language of the input text.
+    /// Detects a top one language of the provided text.
+    ///
+    /// `minimum_distance` is a distance between a first and a second logarithmic probabilities,
+    /// which will can help filter languages with close probabilities.
+    ///
     /// If a single language cannot be returned, [`None`] is returned.
     pub fn detect_top_one(&self, text: &str, minimum_distance: f64) -> Option<ScriptLanguage> {
         debug_assert!(minimum_distance >= 0.0, "Minimum distance must be >= 0.0");
+
         let mut probabilities = self.probabilities(text).into_iter();
 
-        let (most_likely_language, most_likely_language_probability) = probabilities.next()?;
-
-        let Some((_, second_most_likely_language_probability)) = probabilities.next() else {
-            return Some(most_likely_language);
+        let (first_language, first_probability) = probabilities.next()?;
+        let Some((_, second_probability)) = probabilities.next() else {
+            return Some(first_language);
         };
 
-        let language_probability_diff =
-            (most_likely_language_probability - second_most_likely_language_probability).abs();
-
-        if language_probability_diff.is_nan()
-            || language_probability_diff < f64::EPSILON
-            || language_probability_diff < minimum_distance
+        let probabilities_diff = first_probability - second_probability;
+        if probabilities_diff.is_nan()
+            || probabilities_diff < f64::EPSILON
+            || probabilities_diff < minimum_distance
         {
             return None;
         }
 
-        Some(most_likely_language)
+        Some(first_language)
     }
 }
 
@@ -382,6 +399,7 @@ fn order_by_probability_and_lang(
 }
 
 /// `probabilities` must be ordered
+#[inline]
 fn transform_to_relative_probabilities(probabilities: &mut Vec<(ScriptLanguage, f64)>) {
     if probabilities.is_empty() {
         return;
@@ -389,37 +407,38 @@ fn transform_to_relative_probabilities(probabilities: &mut Vec<(ScriptLanguage, 
 
     debug_assert!(!probabilities.iter().any(|(_, p)| p.is_nan()));
 
-    let first_probability = probabilities.first().unwrap().1;
+    let first_probability = probabilities.first().unwrap_safe_unchecked().1;
     if first_probability.is_zero() {
         let zeroes = probabilities
             .iter()
             .position(|(_, p)| !p.is_zero())
             .unwrap_or(probabilities.len());
         probabilities.truncate(zeroes);
-        let len = zeroes as f64;
-        probabilities.iter_mut().for_each(|(_, p)| *p = 1.0 / len);
-
-        return;
     }
 
-    if first_probability == f64::NEG_INFINITY {
+    if first_probability.is_zero() || first_probability == f64::NEG_INFINITY {
         let len = probabilities.len() as f64;
         probabilities.iter_mut().for_each(|(_, p)| *p = 1.0 / len);
 
         return;
     }
 
-    probabilities.iter_mut().for_each(|(_, p)| *p = p.exp());
-    let denominator: f64 = probabilities.iter().map(|(_, p)| *p).sum();
+    let mut denominator: f64 = 0.0;
+    probabilities.iter_mut().for_each(|(_, p)| {
+        *p = p.exp();
+        denominator += *p;
+    });
 
     if denominator.is_zero() {
         if let Some((_, p)) = probabilities.first_mut() {
             *p = 1.0
         }
         probabilities.truncate(1);
-    } else {
-        probabilities
-            .iter_mut()
-            .for_each(|(_, p)| *p /= denominator);
+
+        return;
     }
+
+    probabilities
+        .iter_mut()
+        .for_each(|(_, p)| *p /= denominator);
 }

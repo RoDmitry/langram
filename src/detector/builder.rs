@@ -3,6 +3,7 @@ use crate::ngram_size::{NgramSizes, NgramSizesTrait};
 use ::core::hash::BuildHasher;
 use ::std::{collections::HashSet, hash::DefaultHasher};
 use alphabet_detector::ScriptLanguage;
+use debug_unsafe::option::OptionUnwrapper;
 
 pub struct DummyBuildHasher;
 impl BuildHasher for DummyBuildHasher {
@@ -19,25 +20,26 @@ impl<T: BuildHasher + Default> RealHasher for T {}
 #[derive(Clone, Debug)]
 pub struct DetectorBuilder<'m, H: BuildHasher> {
     pub(super) models_storage: &'m ModelsStorage,
-    pub(super) languages: Option<HashSet<ScriptLanguage, H>>,
+    pub(super) languages: HashSet<ScriptLanguage, H>,
     pub(super) long_text_minlen: Option<usize>,
     pub(super) long_text_ngrams: Option<NgramSizes>,
     pub(super) short_text_ngrams: Option<NgramSizes>,
 }
 
 impl<'m> DetectorBuilder<'m, DummyBuildHasher> {
-    /// has all languages, all ngrams enabled by default
+    /// Will have all languages, all ngrams enabled if none selected
     #[inline]
     pub fn new(models_storage: &'m ModelsStorage) -> Self {
         Self {
             models_storage,
-            languages: None,
+            languages: HashSet::with_hasher(DummyBuildHasher),
             long_text_minlen: None,
             long_text_ngrams: None,
             short_text_ngrams: None,
         }
     }
 
+    /// Build with all languages
     #[inline]
     // pub fn build<H2: RealHasher>(self) -> Detector<'m, H2> {
     pub fn build(self) -> Detector<'m, ahash::RandomState> {
@@ -53,6 +55,7 @@ impl<'m, H: RealHasher> DetectorBuilder<'m, H> {
 }
 
 impl<'m, H: BuildHasher> DetectorBuilder<'m, H> {
+    /// Change languages
     #[inline]
     pub fn languages<H2: RealHasher>(
         self,
@@ -60,28 +63,57 @@ impl<'m, H: BuildHasher> DetectorBuilder<'m, H> {
     ) -> DetectorBuilder<'m, H2> {
         DetectorBuilder {
             models_storage: self.models_storage,
-            languages: Some(languages),
+            languages,
             long_text_minlen: self.long_text_minlen,
             long_text_ngrams: self.long_text_ngrams,
             short_text_ngrams: self.short_text_ngrams,
         }
     }
 
+    /// Min text length (in chars, excluding word separators) for
+    /// switching from short ngrams to long ngrams
     #[inline]
     pub fn minlen(mut self, long_text_minlen: usize) -> Self {
         self.long_text_minlen = Some(long_text_minlen);
         self
     }
 
+    /// Select ngrams for text length >= minlen (in chars, excluding word separators)
     #[inline]
     pub fn long_ngrams(mut self, ngrams: impl Iterator<Item = NgramSize>) -> Self {
         self.long_text_ngrams = Some(NgramSizes::new_merged(ngrams));
         self
     }
 
+    /// Select ngrams for text length < minlen (in chars, excluding word separators)
     #[inline]
     pub fn short_ngrams(mut self, ngrams: impl Iterator<Item = NgramSize>) -> Self {
         self.short_text_ngrams = Some(NgramSizes::new_merged(ngrams));
+        self
+    }
+
+    fn ngrams_add(text_ngrams: &mut Option<NgramSizes>, ngrams: impl Iterator<Item = NgramSize>) {
+        let text_ngrams_ref = match text_ngrams {
+            Some(v) => v,
+            None => {
+                *text_ngrams = Some(NgramSizes::new());
+                text_ngrams.as_mut().unwrap_safe_unchecked()
+            }
+        };
+        text_ngrams_ref.merge(ngrams);
+    }
+
+    /// Add long text ngrams. Starts with empty ngrams
+    #[inline]
+    pub fn long_ngrams_add(mut self, ngrams: impl Iterator<Item = NgramSize>) -> Self {
+        Self::ngrams_add(&mut self.long_text_ngrams, ngrams);
+        self
+    }
+
+    /// Add short text ngrams. Starts with empty ngrams
+    #[inline]
+    pub fn short_ngrams_add(mut self, ngrams: impl Iterator<Item = NgramSize>) -> Self {
+        Self::ngrams_add(&mut self.short_text_ngrams, ngrams);
         self
     }
 
@@ -115,16 +147,30 @@ mod tests {
     #[test]
     fn test_build() {
         let storage = ModelsStorage::default();
-        let builder = DetectorBuilder::new(&storage).build();
-        assert_eq!(builder.languages.len(), ScriptLanguage::COUNT);
+        let detector = DetectorBuilder::new(&storage).build();
+        assert_eq!(detector.languages.len(), ScriptLanguage::COUNT);
 
-        let _builder = DetectorBuilder::new(&storage)
+        let _detector = DetectorBuilder::new(&storage)
             .languages(AHashSet::new().into())
             .build();
 
-        let _builder = DetectorBuilder::new(&storage)
+        let _detector = DetectorBuilder::new(&storage)
             .languages(HashSet::new())
             .build();
+    }
+
+    #[test]
+    fn test_empty_ngrams() {
+        let storage = ModelsStorage::default();
+        let builder = DetectorBuilder::new(&storage)
+            .long_ngrams([].into_iter())
+            .short_ngrams([].into_iter());
+        assert!(builder.long_text_ngrams.as_ref().unwrap().is_empty());
+        assert!(builder.short_text_ngrams.as_ref().unwrap().is_empty());
+
+        let detector = builder.build();
+        assert!(!detector.long_text_ngrams.is_empty());
+        assert!(!detector.short_text_ngrams.is_empty());
     }
 
     #[test]
