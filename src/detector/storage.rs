@@ -35,7 +35,7 @@ impl Debug for ModelsStorage {
 impl ModelsStorage {
     /// Preloads models for the provided languages.
     ///
-    /// Not very efficient, because creates temporary [`Detector`](struct.Detector.html).
+    /// Not very efficient, because creates a temporary [`Detector`](struct.Detector.html).
     /// Better use [`Detector::preload_models`](struct.Detector.html#method.preload_models).
     pub fn preloaded<H: RealHasher>(languages: HashSet<ScriptLanguage, H>) -> Self {
         let models_storage = ModelsStorage::default();
