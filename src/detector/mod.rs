@@ -47,40 +47,42 @@ impl<'m, H: RealHasher> Detector<'m, H> {
     /// Will have all ngrams enabled if none selected
     #[inline]
     fn new(builder: DetectorBuilder<'m, H>) -> Self {
+        let long_text_ngrams = if !builder.long_text_ngrams.is_empty() {
+            builder.long_text_ngrams
+        } else {
+            NgramSizes::new_merged(
+                [
+                    NgramSize::Tri,
+                    NgramSize::Quadri,
+                    NgramSize::Five,
+                    NgramSize::Word,
+                ]
+                .into_iter(),
+            )
+        };
+
+        let short_text_ngrams = if !builder.short_text_ngrams.is_empty() {
+            builder.short_text_ngrams
+        } else {
+            NgramSizes::new_merged(
+                [
+                    NgramSize::Uni,
+                    NgramSize::Bi,
+                    NgramSize::Tri,
+                    NgramSize::Quadri,
+                    NgramSize::Five,
+                    NgramSize::Word,
+                ]
+                .into_iter(),
+            )
+        };
+
         Self {
             models_storage: builder.models_storage,
             languages: builder.languages,
-            long_text_minlen: builder.long_text_minlen.unwrap_or(120),
-            long_text_ngrams: builder
-                .long_text_ngrams
-                .filter(|n| !n.is_empty())
-                .unwrap_or_else(|| {
-                    NgramSizes::new_merged(
-                        [
-                            NgramSize::Tri,
-                            NgramSize::Quadri,
-                            NgramSize::Five,
-                            NgramSize::Word,
-                        ]
-                        .into_iter(),
-                    )
-                }),
-            short_text_ngrams: builder
-                .short_text_ngrams
-                .filter(|n| !n.is_empty())
-                .unwrap_or_else(|| {
-                    NgramSizes::new_merged(
-                        [
-                            NgramSize::Uni,
-                            NgramSize::Bi,
-                            NgramSize::Tri,
-                            NgramSize::Quadri,
-                            NgramSize::Five,
-                            NgramSize::Word,
-                        ]
-                        .into_iter(),
-                    )
-                }),
+            long_text_minlen: builder.long_text_minlen,
+            long_text_ngrams,
+            short_text_ngrams,
         }
     }
 
@@ -290,11 +292,13 @@ impl<'m, H: RealHasher> Detector<'m, H> {
 
         let character_count: usize = words.iter().map(|wd| wd.buf.len()).sum();
 
-        let mut ngram_sizes = if character_count >= self.long_text_minlen {
-            self.long_text_ngrams.clone()
+        let ngram_sizes = if character_count < self.long_text_minlen {
+            &self.short_text_ngrams
         } else {
-            self.short_text_ngrams.clone()
+            &self.long_text_ngrams
         };
+        debug_assert!(!ngram_sizes.is_empty());
+        let mut ngram_sizes_len = ngram_sizes.len();
 
         /* if character_count < ngram_length_range.start {
             return filtered_languages
@@ -311,11 +315,11 @@ impl<'m, H: RealHasher> Detector<'m, H> {
 
         let wordgrams_enabled = *ngram_sizes.last().unwrap_safe_unchecked() == NgramSize::Word;
         if wordgrams_enabled {
-            ngram_sizes.pop();
+            ngram_sizes_len -= 1;
         }
 
         let mut probabilities = slang_arr_default::<(f64, usize)>();
-        for ngram_size in ngram_sizes {
+        for &ngram_size in ngram_sizes.get_safe_unchecked(..ngram_sizes_len) {
             self.compute(
                 words.iter().map(|wd| wd.buf.as_ref()),
                 &filtered_languages,
@@ -362,7 +366,7 @@ impl<'m, H: RealHasher> Detector<'m, H> {
     /// Detects a top one language of the provided text.
     ///
     /// `minimum_distance` is a distance between a first and a second logarithmic probabilities,
-    /// which will can help filter languages with close probabilities.
+    /// which can help filter languages with close probabilities.
     ///
     /// If a single language cannot be returned, [`None`] is returned.
     pub fn detect_top_one(&self, text: &str, minimum_distance: f64) -> Option<ScriptLanguage> {
