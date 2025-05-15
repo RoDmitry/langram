@@ -195,12 +195,12 @@ impl<'m, H: RealHasher> Detector<'m, H> {
         ngrams_iter: impl Iterator<Item = &'a str> + Clone,
         filtered_languages: &AHashSet<ScriptLanguage>,
         ngram_size: NgramSize,
-        result: &mut ScriptLanguageArr<(f64, usize)>,
+        output: &mut ScriptLanguageArr<(f64, usize)>,
     ) {
         for &language in filtered_languages.iter() {
             self.models_storage.load_model(language, ngram_size);
             let ngrams_sum_cnt = self.ngrams_sum_cnt(language, ngrams_iter.clone(), ngram_size);
-            result
+            output
                 .get_safe_unchecked_mut(language as usize)
                 .add(ngrams_sum_cnt);
         }
@@ -210,12 +210,12 @@ impl<'m, H: RealHasher> Detector<'m, H> {
         &'a self,
         ngrams_iter: impl Iterator<Item = &'a str> + Clone,
         filtered_languages: &AHashSet<ScriptLanguage>,
-        result: &mut ScriptLanguageArr<(f64, usize)>,
+        output: &mut ScriptLanguageArr<(f64, usize)>,
     ) {
         for &language in filtered_languages.iter() {
             self.models_storage.load_wordgram_model(language);
             let ngrams_sum_cnt = self.wordgrams_sum_cnt(language, ngrams_iter.clone());
-            result
+            output
                 .get_safe_unchecked_mut(language as usize)
                 .add(ngrams_sum_cnt);
         }
@@ -227,7 +227,7 @@ impl<'m, H: RealHasher> Detector<'m, H> {
         words_iter: impl Iterator<Item = &'a [char]>,
         filtered_languages: &AHashSet<ScriptLanguage>,
         ngram_size: NgramSize,
-        result: &mut ScriptLanguageArr<(f64, usize)>,
+        output: &mut ScriptLanguageArr<(f64, usize)>,
     ) {
         let ngrams = prepare_ngrams(words_iter, ngram_size);
         if ngrams.is_empty() {
@@ -238,12 +238,13 @@ impl<'m, H: RealHasher> Detector<'m, H> {
             ngrams.iter().map(NgramString::as_str),
             filtered_languages,
             ngram_size,
-            result,
+            output,
         );
     }
 
+    /// Computes mean average for each language
     #[inline]
-    fn sum_up_probabilities(
+    fn probabilities_mean(
         probabilities: ScriptLanguageArr<(f64, usize)>,
         filtered_languages: AHashSet<ScriptLanguage>,
     ) -> Vec<(ScriptLanguage, f64)> {
@@ -337,19 +338,15 @@ impl<'m, H: RealHasher> Detector<'m, H> {
             );
         }
 
-        let mut probabilities_sums = Self::sum_up_probabilities(probabilities, filtered_languages);
+        let mut probabilities_mean = Self::probabilities_mean(probabilities, filtered_languages);
 
-        if probabilities_sums.is_empty() {
-            return Default::default();
-        }
-
-        probabilities_sums.sort_unstable_by(order_by_probability_and_lang);
+        probabilities_mean.sort_unstable_by(order_by_probability_and_lang);
         /* println!(
             "res {:?}",
             &probabilities_sums[..probabilities_sums.len().min(5)]
         ); */
 
-        probabilities_sums
+        probabilities_mean
     }
 
     /// Returns probabilities for the provided text relative to other languages.
@@ -434,6 +431,7 @@ fn transform_to_relative_probabilities(probabilities: &mut Vec<(ScriptLanguage, 
     });
 
     if denominator.is_zero() {
+        // ::core::hint::cold_path();
         if let Some((_, p)) = probabilities.first_mut() {
             *p = 1.0
         }
