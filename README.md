@@ -13,7 +13,7 @@ Based on chars (1 - 5) and 1 word [n-gram language model](https://en.wikipedia.o
 
 [`ModelsStorage`](https://docs.rs/langram/latest/langram/struct.ModelsStorage.html) with all models preloaded uses around 4.1GB of RAM. There can be a way (unimplemented) to unload each language model after use, it will work slower but will use around 300MB of RAM.
 
-This library is a complete rewrite of Lingua: 5x faster, more accuracy, more languages, etc.
+This library is a complete rewrite of Lingua: much faster, more accuracy, more languages, etc.
 
 [Accuracy report](https://github.com/RoDmitry/lang_detectors_compare/blob/main/accuracy/langram.csv)
 

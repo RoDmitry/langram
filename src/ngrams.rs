@@ -5,20 +5,15 @@ use debug_unsafe::arraystring::ArrayStringFrom;
 
 pub(crate) type NgramString = ArrayString<U20>;
 
-pub(crate) fn prepare_ngrams<'a>(
-    words: impl Iterator<Item = &'a [char]>,
-    ngram_size: NgramSize,
-) -> Vec<NgramString> {
+pub(crate) fn prepare_ngrams(word: &[char], ngram_size: NgramSize) -> Vec<NgramString> {
     let mut ngrams_tmp = AHashSet::new();
     let mut ngrams = Vec::new();
 
-    for word in words {
-        for ngram in word.windows(ngram_size as usize + 1) {
-            if ngrams_tmp.insert(ngram) {
-                ngrams.push(NgramString::from_chars_safe_unchecked(
-                    ngram.iter().copied(),
-                ));
-            }
+    for ngram in word.windows(ngram_size as usize + 1) {
+        if ngrams_tmp.insert(ngram) {
+            ngrams.push(NgramString::from_chars_safe_unchecked(
+                ngram.iter().copied(),
+            ));
         }
     }
 

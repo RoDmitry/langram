@@ -252,7 +252,7 @@ fn test_mock_probabilities_languages_ngrams(
     let mut probabilities = slang_arr_default::<(f64, usize)>();
     detector.probabilities_languages_ngrams(
         ngrams.iter().copied(),
-        &languages,
+        languages.into_iter(),
         NgramSize::from(ngrams[0].chars().count() - 1),
         &mut probabilities,
     );
@@ -591,6 +591,7 @@ fn test_detect_multiple_with_four_languages(
     case(Kazakh, "нормаланбайды I"),
     case(Kazakh, "Балаларды жүзуге үй-рету бассейнінің үй-жайы"),
     case(English, "I know you әлем"),
+    case(English, "love әлем"),
     case(ChineseMandarinSimplified, "经济"),
     case(ChineseMandarinTraditional, "經濟"),
     case::kanji(Japanese, "経済"),
