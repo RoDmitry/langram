@@ -3,7 +3,7 @@ use crate::{
     ngrams::{prepare_ngrams, NgramString},
 };
 use ::core::cmp::Ordering;
-use ::std::collections::HashSet;
+use ::std::{collections::HashSet, hash::BuildHasher};
 use ahash::AHashSet;
 use alphabet_detector::{
     filter_with_margin, fulltext_filter_with_margin, slang_arr_default, ScriptLanguage,
@@ -237,24 +237,28 @@ impl<'m, H: RealHasher> Detector<'m, H> {
 
     /// Computes mean average for each language
     #[inline]
-    fn probabilities_mean(
+    fn probabilities_mean<FLH: BuildHasher>(
         probabilities: ScriptLanguageArr<(f64, usize)>,
         languages: impl Iterator<Item = ScriptLanguage> + Clone,
+        filtered_languages: &mut HashSet<ScriptLanguage, FLH>,
         output: &mut ScriptLanguageArr<Option<f64>>,
     ) {
-        let top = languages
+        let top_cnt = languages
             .clone()
             .map(|l| probabilities.get_safe_unchecked(l as usize).1)
             .max()
             .unwrap_or_default();
 
-        if top == 0 {
-            languages
-                .for_each(|l| *output.get_safe_unchecked_mut(l as usize) = Some(f64::NEG_INFINITY));
+        if top_cnt == 0 {
+            languages.for_each(|l| {
+                filtered_languages.remove(&l);
+                *output.get_safe_unchecked_mut(l as usize) = Some(f64::NEG_INFINITY);
+            });
         } else {
             for language in languages {
                 let (p, cnt) = *probabilities.get_safe_unchecked(language as usize);
-                let res = if cnt < top {
+                let res = if cnt < top_cnt {
+                    filtered_languages.remove(&language);
                     f64::NEG_INFINITY
                 } else {
                     p / cnt as f64
@@ -281,7 +285,7 @@ impl<'m, H: RealHasher> Detector<'m, H> {
         }
 
         let (words, langs) = fulltext_filter_with_margin::<Vec<char>, 95>(text.char_indices());
-        let filtered_languages: AHashSet<_> = langs
+        let mut filtered_languages: AHashSet<_> = langs
             .filter(|(l, _)| self.languages.contains(l))
             .map(|(l, _)| l) // todo: maybe use count?
             .collect();
@@ -356,8 +360,12 @@ impl<'m, H: RealHasher> Detector<'m, H> {
             Self::probabilities_mean(
                 probabilities,
                 word_languages.iter().copied(),
+                &mut filtered_languages,
                 &mut probabilities_mean,
             );
+            if filtered_languages.len() < 2 {
+                break;
+            }
         }
 
         let mut probabilities_mean: Vec<_> = probabilities_mean
