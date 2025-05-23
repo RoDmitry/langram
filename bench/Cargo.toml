@@ -8,7 +8,7 @@ publish = false
 
 [dependencies]
 ahash = "0.8"
-criterion = "0.5"
+criterion = "0.6"
 langram = { path = ".." }
 
 [[bench]]

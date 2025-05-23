@@ -1,5 +1,5 @@
-use ::std::collections::HashSet;
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use ::std::{collections::HashSet, hint::black_box};
+use criterion::{criterion_group, criterion_main, Criterion};
 use langram::{DetectorBuilder, ModelsStorage, ScriptLanguage};
 
 // This is the common subset of languages that is supported by all
