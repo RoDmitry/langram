@@ -20,7 +20,9 @@ mod tests;
 
 pub use builder::DetectorBuilder;
 use builder::RealHasher;
+use model::Model;
 pub(crate) use model::{ModelNgrams, NgramFromChars};
+use parking_lot::RwLockReadGuard;
 pub use storage::ModelsStorage;
 
 trait ProbabilitiesAdder: Sized {
@@ -124,17 +126,10 @@ impl<'m, H: RealHasher> Detector<'m, H> {
 
     fn ngrams_sum_cnt<'a>(
         &'a self,
-        language: ScriptLanguage,
+        language_model_lock: RwLockReadGuard<'_, Model>,
         ngrams_iter: impl Iterator<Item = &'a str>,
         ngram_size: NgramSize,
     ) -> (f64, usize) {
-        let language_model_lock = self
-            .models_storage
-            .0
-            .get_safe_unchecked(language as usize)
-            .read()
-            .unwrap();
-
         let mut sum = 0.0;
         let mut cnt = 0;
 
@@ -159,14 +154,11 @@ impl<'m, H: RealHasher> Detector<'m, H> {
         (sum, cnt)
     }
 
-    fn wordgrams_sum_cnt(&self, language: ScriptLanguage, word: &str) -> (f64, usize) {
-        let language_model_lock = self
-            .models_storage
-            .0
-            .get_safe_unchecked(language as usize)
-            .read()
-            .unwrap();
-
+    fn wordgrams_sum_cnt(
+        &self,
+        language_model_lock: RwLockReadGuard<'_, Model>,
+        word: &str,
+    ) -> (f64, usize) {
         let mut cnt = 0;
 
         let language_model = &language_model_lock.wordgrams;
@@ -191,8 +183,9 @@ impl<'m, H: RealHasher> Detector<'m, H> {
         output: &mut ScriptLanguageArr<(f64, usize)>,
     ) {
         for language in languages {
-            self.models_storage.load_model(language, ngram_size);
-            let ngrams_sum_cnt = self.ngrams_sum_cnt(language, ngrams_iter.clone(), ngram_size);
+            let language_model_lock = self.models_storage.load_model(language, ngram_size);
+            let ngrams_sum_cnt =
+                self.ngrams_sum_cnt(language_model_lock, ngrams_iter.clone(), ngram_size);
             output
                 .get_safe_unchecked_mut(language as usize)
                 .add(ngrams_sum_cnt);
@@ -206,8 +199,8 @@ impl<'m, H: RealHasher> Detector<'m, H> {
         output: &mut ScriptLanguageArr<(f64, usize)>,
     ) {
         for language in languages {
-            self.models_storage.load_wordgram_model(language);
-            let ngrams_sum_cnt = self.wordgrams_sum_cnt(language, word);
+            let language_model_lock = self.models_storage.load_wordgram_model(language);
+            let ngrams_sum_cnt = self.wordgrams_sum_cnt(language_model_lock, word);
             output
                 .get_safe_unchecked_mut(language as usize)
                 .add(ngrams_sum_cnt);

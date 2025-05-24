@@ -103,13 +103,8 @@ static MOCK_MODELS_ENGLISH_AND_GERMAN: LazyLock<ModelsStorage> = LazyLock::new(|
     *models_storage
         .0
         .get_safe_unchecked(English as usize)
-        .write()
-        .unwrap() = model_for_english();
-    *models_storage
-        .0
-        .get_safe_unchecked(German as usize)
-        .write()
-        .unwrap() = model_for_german();
+        .write() = model_for_english();
+    *models_storage.0.get_safe_unchecked(German as usize).write() = model_for_german();
     models_storage
 });
 
@@ -140,8 +135,7 @@ fn test_mock_model_ngram_lookup(language: ScriptLanguage, ngram: &str, expected_
     let language_model_lock = MOCK_MODELS_ENGLISH_AND_GERMAN
         .0
         .get_safe_unchecked(language as usize)
-        .read()
-        .unwrap();
+        .read();
 
     let probability = language_model_lock.ngrams[ngram_length - 1]
         .get(ngram)
@@ -194,7 +188,10 @@ fn test_mock_ngrams_sum_cnt(
         .languages(ahashset!(English))
         .build();
     let (ngrams_sum, ngrams_cnt) = detector.ngrams_sum_cnt(
-        English,
+        MOCK_MODELS_ENGLISH_AND_GERMAN
+            .0
+            .get_safe_unchecked(English as usize)
+            .read(),
         ngrams.iter().copied(),
         NgramSize::from(ngrams[0].chars().count() - 1),
     );

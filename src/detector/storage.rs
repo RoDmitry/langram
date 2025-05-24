@@ -7,10 +7,10 @@ use ::core::hash::BuildHasher;
 use ::std::{
     collections::HashSet,
     fmt::{self, Debug},
-    sync::RwLock,
 };
 use alphabet_detector::{ScriptLanguage, ScriptLanguageArr};
 use debug_unsafe::slice::SliceGetter;
+use parking_lot::{RwLock, RwLockReadGuard, RwLockUpgradableReadGuard, RwLockWriteGuard};
 #[cfg(not(target_family = "wasm"))]
 use rayon::prelude::*;
 
@@ -46,50 +46,48 @@ impl ModelsStorage {
         models_storage
     }
 
-    pub(super) fn load_model(&self, language: ScriptLanguage, ngram_size: NgramSize) {
+    pub(super) fn load_model(
+        &self,
+        language: ScriptLanguage,
+        ngram_size: NgramSize,
+    ) -> RwLockReadGuard<'_, Model> {
         let lang_model = self.0.get_safe_unchecked(language as usize);
-        let lang_model_guard = lang_model.read().unwrap();
+        let lang_model_guard = lang_model.upgradable_read();
         if lang_model_guard
             .ngrams
             .get_safe_unchecked(ngram_size as usize)
             .capacity()
             > 0
         {
-            return;
+            return RwLockUpgradableReadGuard::<'_, Model>::downgrade(lang_model_guard);
         }
 
-        drop(lang_model_guard);
-        let mut lang_model_guard = lang_model.write().unwrap();
-        // second check here, because there can be multiple threads waiting for the write lock
-        if lang_model_guard
-            .ngrams
-            .get_safe_unchecked(ngram_size as usize)
-            .capacity()
-            > 0
-        {
-            return;
-        }
+        let mut lang_model_guard =
+            RwLockUpgradableReadGuard::<'_, Model>::upgrade(lang_model_guard);
         let file_model = load_model(language, ngram_size);
         let ngram_model = parse_model::<_, ChunksNgramsUnpacker>(file_model, ngram_size);
         lang_model_guard.update_ngrams(ngram_model, ngram_size);
+
+        RwLockWriteGuard::<'_, Model>::downgrade(lang_model_guard)
     }
 
-    pub(super) fn load_wordgram_model(&self, language: ScriptLanguage) {
+    pub(super) fn load_wordgram_model(
+        &self,
+        language: ScriptLanguage,
+    ) -> RwLockReadGuard<'_, Model> {
         let lang_model = self.0.get_safe_unchecked(language as usize);
-        let lang_model_guard = lang_model.read().unwrap();
+        let lang_model_guard = lang_model.upgradable_read();
         if lang_model_guard.wordgrams.capacity() > 0 {
-            return;
+            return RwLockUpgradableReadGuard::<'_, Model>::downgrade(lang_model_guard);
         }
 
-        drop(lang_model_guard);
-        let mut lang_model_guard = lang_model.write().unwrap();
-        // second check here, because there can be multiple threads waiting for the write lock
-        if lang_model_guard.wordgrams.capacity() > 0 {
-            return;
-        }
+        let mut lang_model_guard =
+            RwLockUpgradableReadGuard::<'_, Model>::upgrade(lang_model_guard);
         let file_model = load_model(language, NgramSize::Word);
         let wordgram_model = parse_model::<_, SpaceNgramsUnpacker>(file_model, NgramSize::Word);
         lang_model_guard.update_wordgrams(wordgram_model);
+
+        RwLockWriteGuard::<'_, Model>::downgrade(lang_model_guard)
     }
 
     pub(super) fn load_models_for_languages<const PARALLEL: bool, H: BuildHasher>(
@@ -109,11 +107,11 @@ impl ModelsStorage {
 
         let load = move |&language| {
             ngram_sizes.iter().for_each(|&ngram_size| {
-                self.load_model(language, ngram_size);
+                _ = self.load_model(language, ngram_size);
             });
 
             if wordgrams_enabled {
-                self.load_wordgram_model(language);
+                _ = self.load_wordgram_model(language);
             }
         };
 
@@ -130,14 +128,14 @@ impl ModelsStorage {
         languages: &HashSet<ScriptLanguage, H>,
     ) {
         languages.iter().for_each(|&language| {
-            self.load_model(language, NgramSize::Uni);
+            _ = self.load_model(language, NgramSize::Uni);
         });
     }
 
     /// Drops all models loaded
     pub fn unload(&self) {
         self.0.iter().for_each(|language_model| {
-            *language_model.write().unwrap() = Default::default();
+            *language_model.write() = Default::default();
         });
     }
 }
