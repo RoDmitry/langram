@@ -123,11 +123,11 @@ impl ModelsStorage {
     }
 
     #[inline]
-    pub(super) fn load_unigram_models_for_languages<H: BuildHasher>(
+    pub(super) fn load_unigram_models_for_languages(
         &self,
-        languages: &HashSet<ScriptLanguage, H>,
+        languages: impl Iterator<Item = ScriptLanguage>,
     ) {
-        languages.iter().for_each(|&language| {
+        languages.for_each(|language| {
             _ = self.load_model(language, NgramSize::Uni);
         });
     }

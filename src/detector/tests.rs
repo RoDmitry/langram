@@ -1,7 +1,7 @@
 use super::{builder::DetectorBuilder, model::Model, *};
 use crate::{ngram_size::NGRAM_MAX_LEN, ScriptLanguage::*};
 use ::std::sync::LazyLock;
-use ahash::AHashMap;
+use ahash::{AHashMap, AHashSet};
 use compact_str::CompactString;
 use float_cmp::approx_eq;
 use rstest::*;
