@@ -8,7 +8,7 @@
 //! are implemented, also combined using [`ScriptLanguage`](enum.ScriptLanguage.html#implementations).
 //!
 //! # Example
-//! ```
+//! ```rust
 //! use langram::*;
 //!
 //! let models_storage = ModelsStorage::default();

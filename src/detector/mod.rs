@@ -211,9 +211,9 @@ impl<'m, H: RealHasher> Detector<'m, H> {
     }
 
     #[inline]
-    fn compute<'a>(
-        &'a self,
-        word: &'a [char],
+    fn probabilities_ngrams(
+        &self,
+        word: &[char],
         languages: impl Iterator<Item = ScriptLanguage>,
         ngram_size: NgramSize,
         output: &mut ScriptLanguageArr<(f64, usize)>,
@@ -231,27 +231,47 @@ impl<'m, H: RealHasher> Detector<'m, H> {
         );
     }
 
+    #[inline]
+    fn compute(
+        &self,
+        word: &[char],
+        languages: impl Iterator<Item = ScriptLanguage> + Clone,
+        ngram_sizes: &[NgramSize],
+        wordgrams_enabled: bool,
+    ) -> ScriptLanguageArr<(f64, usize)> {
+        let mut probabilities = slang_arr_default::<(f64, usize)>();
+        for &ngram_size in ngram_sizes {
+            self.probabilities_ngrams(word, languages.clone(), ngram_size, &mut probabilities);
+        }
+
+        if wordgrams_enabled {
+            let word: String = word.iter().collect();
+            self.probabilities_languages_wordgrams(&word, languages, &mut probabilities);
+        }
+        probabilities
+    }
+
     /// Computes mean average for each language
     #[inline]
     fn probabilities_mean<FLH: BuildHasher>(
         probabilities: ScriptLanguageArr<(f64, usize)>,
-        languages: Vec<(ScriptLanguage, u32)>,
+        word_languages: Vec<(ScriptLanguage, u32)>,
         filtered_languages: &mut HashMap<ScriptLanguage, u32, FLH>,
         output: &mut ScriptLanguageArr<Option<f64>>,
     ) {
-        let top_cnt = languages
+        let top_cnt = word_languages
             .iter()
             .map(|(l, _)| probabilities.get_safe_unchecked(*l as usize).1)
             .max()
             .unwrap_or_default();
 
         if top_cnt == 0 {
-            languages.into_iter().for_each(|(l, _)| {
+            word_languages.into_iter().for_each(|(l, _)| {
                 filtered_languages.remove(&l);
                 *output.get_safe_unchecked_mut(l as usize) = Some(f64::NEG_INFINITY);
             });
         } else {
-            for (language, alp_cnt) in languages {
+            for (language, alp_cnt) in word_languages {
                 let (p, cnt) = *probabilities.get_safe_unchecked(language as usize);
                 let res = if cnt < top_cnt {
                     filtered_languages.remove(&language);
@@ -334,25 +354,12 @@ impl<'m, H: RealHasher> Detector<'m, H> {
                 .filter_map(|(l, _)| filtered_languages.get(&l).map(|&c| (l, c)))
                 .collect();
 
-            let mut probabilities = slang_arr_default::<(f64, usize)>();
-            let word = wd.buf.as_ref();
-            for &ngram_size in ngram_sizes.get_safe_unchecked(..ngram_sizes_len) {
-                self.compute(
-                    word,
-                    word_languages.iter().map(|(l, _)| *l),
-                    ngram_size,
-                    &mut probabilities,
-                );
-            }
-
-            if wordgrams_enabled {
-                let word: String = wd.buf.iter().collect();
-                self.probabilities_languages_wordgrams(
-                    &word,
-                    word_languages.iter().map(|(l, _)| *l),
-                    &mut probabilities,
-                );
-            }
+            let probabilities = self.compute(
+                wd.buf.as_ref(),
+                word_languages.iter().map(|(l, _)| *l),
+                ngram_sizes.get_safe_unchecked(..ngram_sizes_len),
+                wordgrams_enabled,
+            );
 
             Self::probabilities_mean(
                 probabilities,
