@@ -271,7 +271,7 @@ fn test_mock_probabilities_languages_ngrams(
     expected_probabilities,
     case::language_detected_by_rules("groß", vec![(German, 1.0)]),
     case::known_ngrams("Alter", vec![(German, 0.61), (English, 0.39)]),
-    case::english_only_ngrams("k", vec![(English, 1.0)]),
+    case::english_only_ngrams("k", vec![(English, 1.0), (German, 0.0)]),
     case::unique_ngrams("o", vec![(English, 0.5), (German, 0.5)]),
     case::unknown_ngrams("проарплап", vec![]),
 )]
@@ -590,6 +590,7 @@ fn test_detect_multiple_with_four_languages(
     case(Kazakh, "нормаланбайды I"),
     case(Kazakh, "Балаларды жүзуге үй-рету бассейнінің үй-жайы"),
     case(English, "I know you әлем"),
+    case(English, "love әлем"),
     case(
         English,
         "A vibrator, sometimes described as a massager, is a sex toy that is used on the body to produce pleasurable sexual stimulation"

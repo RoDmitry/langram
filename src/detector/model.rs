@@ -2,8 +2,10 @@ use crate::{
     ngram_size::{NgramSize, NGRAM_MAX_LEN},
     ngrams::NgramString,
 };
+use ::std::sync::{Arc, LazyLock};
 use compact_str::CompactString;
 use debug_unsafe::{arraystring::ArrayStringFrom, slice::SliceGetter};
+use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 
 pub(crate) type ModelNgrams<Ngram> = FxHashMap<Ngram, f64>;
@@ -31,8 +33,10 @@ pub(super) struct Model {
     pub(super) ngrams: ModelNgramsArr,
     pub(super) ngram_min_probability: f64,
     pub(super) wordgrams: ModelNgrams<CompactString>,
-    pub(super) wordgram_min_probability: f64,
+    pub(super) wordgram_min_probability: Arc<RwLock<f64>>,
 }
+
+static WMP: LazyLock<Arc<RwLock<f64>>> = LazyLock::new(Default::default);
 
 impl Default for Model {
     #[inline]
@@ -41,7 +45,7 @@ impl Default for Model {
             ngrams: Default::default(),
             wordgrams: Default::default(),
             ngram_min_probability: f64::NEG_INFINITY,
-            wordgram_min_probability: f64::NEG_INFINITY,
+            wordgram_min_probability: WMP.clone(),
         }
     }
 }
@@ -52,6 +56,16 @@ impl Model {
             (1.0 / model_ngrams.len() as f64).ln()
         } else {
             f64::NEG_INFINITY
+        }
+    }
+
+    fn update_wordgram_min_probability<Ngram>(model_ngrams: &ModelNgrams<Ngram>) {
+        if !model_ngrams.is_empty() {
+            let new_wordgram_min_probability = (1.0 / model_ngrams.len() as f64).ln();
+            let mut wordgram_min_probability = WMP.write();
+            if new_wordgram_min_probability < *wordgram_min_probability {
+                *wordgram_min_probability = new_wordgram_min_probability;
+            }
         }
     }
 
@@ -69,7 +83,7 @@ impl Model {
 
     #[inline]
     pub(super) fn update_wordgrams(&mut self, model_wordgrams: ModelNgrams<CompactString>) {
-        self.wordgram_min_probability = Self::count_min_probability(&model_wordgrams);
+        Self::update_wordgram_min_probability(&model_wordgrams);
         self.wordgrams = model_wordgrams;
     }
 
@@ -78,13 +92,14 @@ impl Model {
     pub(super) fn new(ngrams: ModelNgramsArr, wordgrams: ModelNgrams<CompactString>) -> Self {
         let ngram_min_probability =
             Self::count_min_probability(ngrams.get_safe_unchecked(NgramSize::Uni as usize));
-        let wordgram_min_probability = Self::count_min_probability(&wordgrams);
+
+        Self::update_wordgram_min_probability(&wordgrams);
 
         Self {
             ngrams,
             ngram_min_probability,
             wordgrams,
-            wordgram_min_probability,
+            wordgram_min_probability: WMP.clone(),
         }
     }
 }
