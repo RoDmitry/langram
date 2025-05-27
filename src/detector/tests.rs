@@ -184,10 +184,7 @@ fn test_mock_ngrams_sum_cnt(
     expected_ngrams_sum: f64,
     expected_ngrams_cnt: usize,
 ) {
-    let detector = DetectorBuilder::new(&MOCK_MODELS_ENGLISH_AND_GERMAN)
-        .languages(ahashset!(English))
-        .build();
-    let (ngrams_sum, ngrams_cnt) = detector.ngrams_sum_cnt(
+    let (ngrams_sum, ngrams_cnt) = Detector::<'_, ahash::RandomState>::ngrams_sum_cnt(
         MOCK_MODELS_ENGLISH_AND_GERMAN
             .0
             .get_safe_unchecked(English as usize)
@@ -242,12 +239,10 @@ fn test_mock_probabilities_languages_ngrams(
     expected_probabilities: AHashMap<ScriptLanguage, f64>,
 ) {
     let languages: AHashSet<ScriptLanguage> = ahashset!(English, German);
-    let detector = DetectorBuilder::new(&MOCK_MODELS_ENGLISH_AND_GERMAN)
-        .languages(languages.clone().into())
-        .build();
 
     let mut probabilities = slang_arr_default::<(f64, usize)>();
-    detector.probabilities_languages_ngrams(
+    Detector::<'_, ahash::RandomState>::probabilities_languages_ngrams(
+        &MOCK_MODELS_ENGLISH_AND_GERMAN,
         ngrams.iter().copied(),
         languages.into_iter(),
         NgramSize::from(ngrams[0].chars().count() - 1),
@@ -329,46 +324,53 @@ fn test_mock_detect_top_one(word: &str, expected_language: Option<ScriptLanguage
     assert_eq!(detected_language, expected_language);
 }
 
-/* #[rstest]
+/* #[test]
 fn test_detect_multiple_for_empty_string() {
-    let detector = LanguageDetector::new(
-        LanguageDetectorConfig::new_all_languages(),
-        &MODELS_ALL_LANGUAGES_PRELOADED,
-    );
-    assert!(detector.detect_multiple("").is_empty());
+    let detector = DetectorBuilder::new(&MODELS_ALL_LANGUAGES_PRELOADED).build();
+    assert!(detector.probabilities_words("").is_empty());
 }
 
 #[rstest(
-    sentence,
-    expected_word_count,
     expected_language,
-    case::english_1(
-        "I'm really not sure whether multi-language detection is a good idea.",
-        11,
-        English
+    sentence,
+    case(English, "massage"),
+    case(English, "Hello"),
+    case(English, "super"),
+    case(English, "soup"),
+    case(English, "I'm"),
+    case(English, "Is"),
+    case(English, "a"),
+    case(
+        English,
+        "I'm really not sure whether multi-language detection is a good idea."
     ),
-    case::english_2("I'm frightened! 🙈", 3, English),
-    case::kazakh("V төзімділік спорт", 3, Kazakh)
+    case(English, "I am frightened! 🙈"),
+    case(Kazakh, "төзімділік спорты")
 )]
-fn test_detect_multiple_with_one_language(
-    sentence: &str,
-    expected_word_count: usize,
-    expected_language: ScriptLanguage,
-) {
-    let detector = LanguageDetector::new(
-        LanguageDetectorConfig::new_all_languages(),
-        &MODELS_ALL_LANGUAGES_PRELOADED,
-    );
-    let results = detector.detect_multiple(sentence);
-    assert_eq!(results.len(), 1);
+fn test_detect_multiple_with_one_language(expected_language: ScriptLanguage, sentence: &str) {
+    let detector = DetectorBuilder::new(&MODELS_ALL_LANGUAGES_PRELOADED)
+        .languages(ahashset!(
+            ChineseMandarinSimplified,
+            English,
+            French,
+            German,
+            Kazakh,
+            Russian,
+            Spanish,
+        ))
+        .build();
+    let words = detector.probabilities_words(sentence);
 
-    let result = &results[0];
-    let substring = &sentence[result.start_index()..result.end_index()];
-    assert_eq!(substring, sentence);
-    assert_eq!(result.word_count, expected_word_count);
-    assert_eq!(result.language(), expected_language);
-}
-
+    for word in words {
+        assert_eq!(
+            word.probabilities.first().unwrap().0,
+            expected_language,
+            "{:?}",
+            word.buf
+        );
+    }
+} */
+/*
 #[rstest(
     sentence,
     expected_first_substring,
@@ -588,7 +590,10 @@ fn test_detect_multiple_with_four_languages(
     case(Kazakh, "нормаланбайды I"),
     case(Kazakh, "Балаларды жүзуге үй-рету бассейнінің үй-жайы"),
     case(English, "I know you әлем"),
-    case(English, "love әлем"),
+    case(
+        English,
+        "A vibrator, sometimes described as a massager, is a sex toy that is used on the body to produce pleasurable sexual stimulation"
+    ),
     case(ChineseMandarinSimplified, "经济"),
     case(ChineseMandarinTraditional, "經濟"),
     case::kanji(Japanese, "経済"),

@@ -3,14 +3,9 @@ use crate::{
     ngrams::{prepare_ngrams, NgramString},
 };
 use ::core::cmp::Ordering;
-use ::std::{
-    collections::{HashMap, HashSet},
-    hash::BuildHasher,
-};
-use ahash::AHashMap;
+use ::std::collections::HashSet;
 use alphabet_detector::{
-    filter_with_margin, fulltext_filter_with_margin, slang_arr_default, ScriptLanguage,
-    ScriptLanguageArr,
+    fulltext_filter_with_margin, slang_arr_default, ScriptLanguage, ScriptLanguageArr,
 };
 use debug_unsafe::{option::OptionUnwrapper, slice::SliceGetter};
 use fraction::Zero;
@@ -127,13 +122,11 @@ impl<'m, H: RealHasher> Detector<'m, H> {
         self.models_storage.unload();
     }
 
-    fn ngrams_sum_cnt<'a>(
-        &'a self,
+    fn ngrams_sum_cnt<'n>(
         language_model_lock: RwLockReadGuard<'_, Model>,
-        ngrams_iter: impl Iterator<Item = &'a str>,
+        ngrams_iter: impl Iterator<Item = &'n str>,
         ngram_size: NgramSize,
     ) -> (f64, usize) {
-        let mut sum = 0.0;
         let mut cnt = 0;
 
         let Some(language_model) = language_model_lock
@@ -141,9 +134,10 @@ impl<'m, H: RealHasher> Detector<'m, H> {
             .get(ngram_size as usize)
             .filter(|m| !m.is_empty())
         else {
-            return (sum, cnt);
+            return (language_model_lock.ngram_min_probability, cnt);
         };
 
+        let mut sum = 0.0;
         for ngram in ngrams_iter {
             let probability = language_model
                 .get(ngram)
@@ -157,53 +151,57 @@ impl<'m, H: RealHasher> Detector<'m, H> {
         (sum, cnt)
     }
 
-    fn wordgrams_sum_cnt(
-        &self,
+    fn wordgrams_sum_cnt<'a>(
         language_model_lock: RwLockReadGuard<'_, Model>,
-        word: &str,
+        ngrams_iter: impl Iterator<Item = &'a str>,
     ) -> (f64, usize) {
+        let mut sum = 0.0;
         let mut cnt = 0;
 
         let language_model = &language_model_lock.wordgrams;
         if language_model.is_empty() {
-            return (0.0, cnt);
+            return (sum, cnt);
         };
 
-        let probability = language_model
-            .get(word)
-            .copied()
-            .inspect(|_| cnt += 1)
-            .unwrap_or(language_model_lock.wordgram_min_probability);
+        for ngram in ngrams_iter {
+            let probability = language_model
+                .get(ngram)
+                .copied()
+                .inspect(|_| cnt += 1)
+                .unwrap_or(language_model_lock.wordgram_min_probability);
 
-        (probability, cnt)
+            sum += probability;
+        }
+
+        (sum, cnt)
     }
 
     fn probabilities_languages_ngrams<'a>(
-        &'a self,
+        models_storage: &'m ModelsStorage,
         ngrams_iter: impl Iterator<Item = &'a str> + Clone,
         languages: impl Iterator<Item = ScriptLanguage>,
         ngram_size: NgramSize,
         output: &mut ScriptLanguageArr<(f64, usize)>,
     ) {
         for language in languages {
-            let language_model_lock = self.models_storage.load_model(language, ngram_size);
+            let language_model_lock = models_storage.load_model(language, ngram_size);
             let ngrams_sum_cnt =
-                self.ngrams_sum_cnt(language_model_lock, ngrams_iter.clone(), ngram_size);
+                Self::ngrams_sum_cnt(language_model_lock, ngrams_iter.clone(), ngram_size);
             output
                 .get_safe_unchecked_mut(language as usize)
                 .add(ngrams_sum_cnt);
         }
     }
 
-    fn probabilities_languages_wordgrams(
-        &self,
-        word: &str,
+    fn probabilities_languages_wordgrams<'a>(
+        models_storage: &'m ModelsStorage,
+        ngrams_iter: impl Iterator<Item = &'a str> + Clone,
         languages: impl Iterator<Item = ScriptLanguage>,
         output: &mut ScriptLanguageArr<(f64, usize)>,
     ) {
         for language in languages {
-            let language_model_lock = self.models_storage.load_wordgram_model(language);
-            let ngrams_sum_cnt = self.wordgrams_sum_cnt(language_model_lock, word);
+            let language_model_lock = models_storage.load_wordgram_model(language);
+            let ngrams_sum_cnt = Self::wordgrams_sum_cnt(language_model_lock, ngrams_iter.clone());
             output
                 .get_safe_unchecked_mut(language as usize)
                 .add(ngrams_sum_cnt);
@@ -211,81 +209,56 @@ impl<'m, H: RealHasher> Detector<'m, H> {
     }
 
     #[inline]
-    fn probabilities_ngrams(
-        &self,
-        word: &[char],
+    fn probabilities_ngrams<'a>(
+        models_storage: &'m ModelsStorage,
+        words_iter: impl Iterator<Item = &'a [char]>,
         languages: impl Iterator<Item = ScriptLanguage>,
         ngram_size: NgramSize,
         output: &mut ScriptLanguageArr<(f64, usize)>,
     ) {
-        let ngrams = prepare_ngrams(word, ngram_size);
+        let ngrams = prepare_ngrams(words_iter, ngram_size);
         if ngrams.is_empty() {
             return;
         }
 
-        self.probabilities_languages_ngrams(
+        Self::probabilities_languages_ngrams(
+            models_storage,
             ngrams.iter().map(NgramString::as_str),
             languages,
             ngram_size,
             output,
         );
-    }
 
-    #[inline]
-    fn compute(
-        &self,
-        word: &[char],
-        languages: impl Iterator<Item = ScriptLanguage> + Clone,
-        ngram_sizes: &[NgramSize],
-        wordgrams_enabled: bool,
-    ) -> ScriptLanguageArr<(f64, usize)> {
-        let mut probabilities = slang_arr_default::<(f64, usize)>();
-        for &ngram_size in ngram_sizes {
-            self.probabilities_ngrams(word, languages.clone(), ngram_size, &mut probabilities);
-        }
-
-        if wordgrams_enabled {
-            let word: String = word.iter().collect();
-            self.probabilities_languages_wordgrams(&word, languages, &mut probabilities);
-        }
-        probabilities
+        /* let mut dbg: Vec<_> = output
+            .iter()
+            .enumerate()
+            .filter(|(_, d)| d.1 > 0)
+            .map(|(l, d)| (ScriptLanguage::transmute_from_usize(l), d))
+            .collect();
+        dbg.sort_by(|(_, d1), (_, d2)| d2.1.cmp(&d1.1).then(d2.0.total_cmp(&d1.0)));
+        println!("OUTPUT {:?}", dbg); */
     }
 
     /// Computes mean average for each language
     #[inline]
-    fn probabilities_mean<FLH: BuildHasher>(
+    fn probabilities_mean(
         probabilities: ScriptLanguageArr<(f64, usize)>,
-        word_languages: Vec<(ScriptLanguage, u32)>,
-        filtered_languages: &mut HashMap<ScriptLanguage, u32, FLH>,
-        output: &mut ScriptLanguageArr<Option<f64>>,
-    ) {
-        let top_cnt = word_languages
-            .iter()
-            .map(|(l, _)| probabilities.get_safe_unchecked(*l as usize).1)
-            .max()
-            .unwrap_or_default();
-
-        if top_cnt == 0 {
-            word_languages.into_iter().for_each(|(l, _)| {
-                filtered_languages.remove(&l);
-                *output.get_safe_unchecked_mut(l as usize) = Some(f64::NEG_INFINITY);
-            });
-        } else {
-            for (language, alp_cnt) in word_languages {
-                let (p, cnt) = *probabilities.get_safe_unchecked(language as usize);
-                let res = if cnt < top_cnt {
-                    filtered_languages.remove(&language);
+        filtered_languages: Vec<ScriptLanguage>,
+    ) -> Vec<(ScriptLanguage, f64)> {
+        let mut res = Vec::with_capacity(filtered_languages.len());
+        for language in filtered_languages.into_iter() {
+            let (p, cnt) = *probabilities.get_safe_unchecked(language as usize);
+            res.push((
+                language,
+                if cnt == 0 {
                     f64::NEG_INFINITY
                 } else {
-                    p / (cnt + alp_cnt as usize) as f64
-                };
-
-                match output.get_safe_unchecked_mut(language as usize) {
-                    Some(v) => *v += res,
-                    v => *v = Some(res),
-                }
-            }
+                    p / cnt as f64
+                },
+            ));
         }
+
+        res
     }
 
     /// Returns probabilities for the provided text.
@@ -300,11 +273,10 @@ impl<'m, H: RealHasher> Detector<'m, H> {
             return Default::default();
         }
 
-        let (words, langs, langs_count_margin) =
-            fulltext_filter_with_margin::<Vec<char>, 95>(text.char_indices());
-        let mut filtered_languages: AHashMap<_, _> = langs
+        let (words, langs, _) = fulltext_filter_with_margin::<Vec<char>, 95>(text.char_indices());
+        let filtered_languages: Vec<_> = langs
             .filter(|(l, _)| self.languages.contains(l))
-            .map(|(l, c)| (l, c - 1 - langs_count_margin))
+            .map(|(l, _)| l)
             .collect();
 
         if words.is_empty() || filtered_languages.is_empty() {
@@ -313,7 +285,7 @@ impl<'m, H: RealHasher> Detector<'m, H> {
 
         if filtered_languages.len() == 1 {
             let lang = filtered_languages
-                .into_keys()
+                .into_iter()
                 .next()
                 .unwrap_safe_unchecked();
             return vec![(lang, 0.0)];
@@ -339,7 +311,7 @@ impl<'m, H: RealHasher> Detector<'m, H> {
         // always preload unigrams
         if *ngram_sizes.first().unwrap_safe_unchecked() != NgramSize::Uni {
             self.models_storage
-                .load_unigram_models_for_languages(filtered_languages.keys().copied());
+                .load_unigram_models_for_languages(filtered_languages.iter().copied());
         }
 
         let wordgrams_enabled = *ngram_sizes.last().unwrap_safe_unchecked() == NgramSize::Word;
@@ -347,40 +319,33 @@ impl<'m, H: RealHasher> Detector<'m, H> {
             ngram_sizes_len -= 1;
         }
 
-        let mut probabilities_mean = slang_arr_default::<Option<f64>>();
-        for wd in words.into_iter() {
-            let (langs, _word_langs_count_margin) = filter_with_margin::<91>(wd.langs_cnt);
-            let word_languages: Vec<_> = langs
-                .filter_map(|(l, _)| filtered_languages.get(&l).map(|&c| (l, c)))
-                .collect();
-
-            let probabilities = self.compute(
-                wd.buf.as_ref(),
-                word_languages.iter().map(|(l, _)| *l),
-                ngram_sizes.get_safe_unchecked(..ngram_sizes_len),
-                wordgrams_enabled,
+        let mut probabilities = slang_arr_default::<(f64, usize)>();
+        for &ngram_size in ngram_sizes.get_safe_unchecked(..ngram_sizes_len) {
+            Self::probabilities_ngrams(
+                self.models_storage,
+                words.iter().map(|wd| wd.buf.as_ref()),
+                filtered_languages.iter().copied(),
+                ngram_size,
+                &mut probabilities,
             );
-
-            Self::probabilities_mean(
-                probabilities,
-                word_languages,
-                &mut filtered_languages,
-                &mut probabilities_mean,
-            );
-            if filtered_languages.len() < 2 {
-                break;
-            }
         }
 
-        let mut probabilities_mean: Vec<_> = probabilities_mean
-            .into_iter()
-            .enumerate()
-            .filter_map(|(l, p)| p.map(|p2| (ScriptLanguage::transmute_from_usize(l), p2)))
-            .collect();
+        if wordgrams_enabled {
+            let wordgrams: Vec<String> = words.iter().map(|wd| wd.buf.iter().collect()).collect();
+            Self::probabilities_languages_wordgrams(
+                self.models_storage,
+                wordgrams.iter().map(|s| s.as_str()),
+                filtered_languages.iter().copied(),
+                &mut probabilities,
+            );
+        }
+
+        let mut probabilities_mean = Self::probabilities_mean(probabilities, filtered_languages);
+
         probabilities_mean.sort_unstable_by(order_by_probability_and_lang);
         /* println!(
             "res {:?}",
-            &probabilities_mean[..probabilities_mean.len().min(5)]
+            &probabilities_sums[..probabilities_sums.len().min(5)]
         ); */
 
         probabilities_mean
