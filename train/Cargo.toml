@@ -1,6 +1,6 @@
 [package]
 name = "langram_train"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Dmitry Rodionov <gh@rdmtr.com>"]
 description = "Langram train models"
 documentation = "https://docs.rs/langram/"
