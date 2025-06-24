@@ -1,6 +1,6 @@
 //! # Natural language detection library
 //!
-//! ## 308 ScriptLanguages (187 models + 121 single language scripts)
+//! ## 314 ScriptLanguages (187 models + 127 single language scripts)
 //!
 //! One language can be written in multiple scripts, so it will be detected as a different [`ScriptLanguage`](enum.ScriptLanguage.html) (language + script).
 //!
@@ -18,7 +18,7 @@
 //!
 //! // single thread
 //! let text = "text";
-//! let result = detector.detect_top_one(text, 0.0);
+//! let result = detector.detect_top_one(text, 0.2);
 //!
 //! // or multithreaded (rayon for example)
 //! use rayon::iter::IntoParallelRefIterator;
@@ -27,7 +27,7 @@
 //! let texts = &["text1", "text2"];
 //! let results: Vec<_> = texts
 //!     .par_iter()
-//!     .map(|text| detector.detect_top_one(text, 0.0))
+//!     .map(|text| detector.detect_top_one(text, 0.2))
 //!     .collect();
 //! ```
 //! `detector` also has [other methods](struct.Detector.html#implementations)

@@ -324,6 +324,27 @@ fn test_mock_detect_top_one(word: &str, expected_language: Option<ScriptLanguage
     assert_eq!(detected_language, expected_language);
 }
 
+#[rstest(
+    word,
+    expected_language,
+    case::script_no_models("ꨕ", Some(ChamEastern))
+)]
+fn test_mock_detect_top_one_no_filter(word: &str, expected_language: Option<ScriptLanguage>) {
+    let detector = DetectorBuilder::new(&MOCK_MODELS_ENGLISH_AND_GERMAN).build();
+    let detected_language = detector.detect_top_one(word, 0.0);
+    assert_eq!(detected_language, expected_language);
+}
+
+#[rstest(word, expected_language, case::script_no_models("ꨕ", None))]
+fn test_mock_detect_top_one_or_none_no_filter(
+    word: &str,
+    expected_language: Option<ScriptLanguage>,
+) {
+    let detector = DetectorBuilder::new(&MOCK_MODELS_ENGLISH_AND_GERMAN).build();
+    let detected_language = detector.detect_top_one_or_none(word, 0.0);
+    assert_eq!(detected_language, expected_language);
+}
+
 /* #[test]
 fn test_detect_multiple_for_empty_string() {
     let detector = DetectorBuilder::new(&MODELS_ALL_LANGUAGES_PRELOADED).build();
@@ -601,9 +622,49 @@ fn test_detect_multiple_with_four_languages(
     case::kanji2(Japanese, "自動販売機"),
     // case(Arabic, "كيف حالك؟")
 )]
+fn test_detect_top_one_or_none(expected_language: ScriptLanguage, text: &str) {
+    let detector = DetectorBuilder::new(&MODELS_ALL_LANGUAGES_PRELOADED).build();
+    assert_eq!(
+        detector.detect_top_one_or_none(text, 0.0),
+        Some(expected_language),
+        "{}",
+        text
+    );
+}
+
+#[rstest(
+    expected_language,
+    text,
+    case(Kazakh, "нормаланбайды"),
+    case(Kazakh, "нормаланбайды I"),
+    case(Kazakh, "Балаларды жүзуге үй-рету бассейнінің үй-жайы"),
+    case(English, "I know you әлем"),
+    case(English, "love әлем"),
+    case(English, "massage"),
+    case(English, "Hello"),
+    // case(English, "super"),
+    // case(English, "soup"),
+    case(English, "I'm"),
+    case(English, "Is"),
+    // case(English, "a"),
+    case(
+        English,
+        "A vibrator, sometimes described as a massager, is a sex toy that is used on the body to produce pleasurable sexual stimulation"
+    ),
+    case(ChineseMandarinSimplified, "经济"),
+    case(ChineseMandarinTraditional, "經濟"),
+    case::kanji(Japanese, "経済"),
+    case::kanji2(Japanese, "自動販売機"),
+    // case(Arabic, "كيف حالك؟")
+)]
 fn test_detect_top_one(expected_language: ScriptLanguage, text: &str) {
     let detector = DetectorBuilder::new(&MODELS_ALL_LANGUAGES_PRELOADED).build();
-    assert_eq!(detector.detect_top_one(text, 0.0), Some(expected_language));
+    assert_eq!(
+        detector.detect_top_one(text, 0.2),
+        Some(expected_language),
+        "{}",
+        text
+    );
 }
 
 #[rstest(text, languages,

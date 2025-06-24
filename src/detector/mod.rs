@@ -375,7 +375,11 @@ impl<'m, H: RealHasher> Detector<'m, H> {
     /// which can help filter languages with close probabilities.
     ///
     /// If a single language cannot be returned, [`None`] is returned.
-    pub fn detect_top_one(&self, text: &str, minimum_distance: f64) -> Option<ScriptLanguage> {
+    pub fn detect_top_one_or_none(
+        &self,
+        text: &str,
+        minimum_distance: f64,
+    ) -> Option<ScriptLanguage> {
         debug_assert!(minimum_distance >= 0.0, "Minimum distance must be >= 0.0");
 
         let mut probabilities = self.probabilities(text).into_iter();
@@ -394,6 +398,35 @@ impl<'m, H: RealHasher> Detector<'m, H> {
         }
 
         Some(first_language)
+    }
+
+    /// Detects a top one language of the provided text. 
+    /// For short phrases (<= 30 chars), if multiple languages are covered by `reorder_distance`,
+    /// reorders by total speakers of these languages.
+    ///
+    /// `reorder_distance` is a distance between logarithmic probabilities, 0.2 is recommended.
+    ///
+    /// [`None`] is returned only when `probabilities` is empty.
+    pub fn detect_top_one(&self, text: &str, reorder_distance: f64) -> Option<ScriptLanguage> {
+        debug_assert!(reorder_distance >= 0.0, "Reorder distance must be >= 0.0");
+
+        let mut probabilities = self.probabilities(text);
+
+        let (first_language, first_probability) = *probabilities.first()?;
+        if text.len() > 30 {
+            return Some(first_language);
+        }
+
+        let reorder_probability = first_probability - reorder_distance;
+
+        let lim = probabilities
+            .iter()
+            .position(|(_, p)| *p < reorder_probability)
+            .unwrap_or(probabilities.len());
+        probabilities.truncate(lim);
+        probabilities.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+
+        probabilities.first().map(|(l, _)| *l)
     }
 }
 
