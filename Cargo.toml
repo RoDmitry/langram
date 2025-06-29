@@ -1,6 +1,6 @@
 [package]
 name = "langram"
-version = "0.5.2"
+version = "0.6.0"
 authors = ["Dmitry Rodionov <gh@rdmtr.com>"]
 description = "Natural language detection library"
 documentation = "https://docs.rs/langram/"
@@ -21,7 +21,7 @@ path = "src/lib.rs"
 
 [dependencies]
 ahash = "0.8"
-alphabet_detector = { path = "../alphabet_detector", version = "0.8" }
+alphabet_detector = { path = "../alphabet_detector", version = "0.9" }
 arraystring = "0.3"
 arrayvec = "0.7"
 atoi_simd = "0.16"

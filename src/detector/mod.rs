@@ -400,7 +400,7 @@ impl<'m, H: RealHasher> Detector<'m, H> {
         Some(first_language)
     }
 
-    /// Detects a top one language of the provided text. 
+    /// Detects a top one language of the provided text.
     /// For short phrases (<= 30 chars), if multiple languages are covered by `reorder_distance`,
     /// reorders by total speakers of these languages.
     ///
