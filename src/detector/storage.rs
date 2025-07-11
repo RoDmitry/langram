@@ -16,7 +16,7 @@ use rayon::prelude::*;
 
 type LanguagesModels = ScriptLanguageArr<RwLock<Model>>;
 
-/// With all models preloaded uses around 4.1GB of RAM.
+/// With all models preloaded uses around 4.1GB of RAM (2.4GB using max_trigrams).
 pub struct ModelsStorage(pub(super) LanguagesModels);
 
 impl Default for ModelsStorage {
