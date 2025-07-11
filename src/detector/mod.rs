@@ -300,13 +300,12 @@ impl<'m, H: RealHasher> Detector<'m, H> {
 
         let characters_count: usize = words.iter().map(|wd| wd.buf.len()).sum();
 
-        let ngram_sizes = if characters_count < self.long_text_minlen {
+        let mut ngram_sizes: &[NgramSize] = if characters_count < self.long_text_minlen {
             &self.short_text_ngrams
         } else {
             &self.long_text_ngrams
         };
         debug_assert!(!ngram_sizes.is_empty());
-        let mut ngram_sizes_len = ngram_sizes.len();
 
         /* if characters_count < ngram_length_range.start {
             return filtered_languages
@@ -323,11 +322,11 @@ impl<'m, H: RealHasher> Detector<'m, H> {
 
         let wordgrams_enabled = *ngram_sizes.last().unwrap_safe_unchecked() == NgramSize::Word;
         if wordgrams_enabled {
-            ngram_sizes_len -= 1;
+            ngram_sizes = ngram_sizes.get_safe_unchecked(..ngram_sizes.len() - 1);
         }
 
         let mut probabilities = slang_arr_default::<(f64, usize)>();
-        for &ngram_size in ngram_sizes.get_safe_unchecked(..ngram_sizes_len) {
+        for &ngram_size in ngram_sizes {
             Self::probabilities_ngrams(
                 self.models_storage,
                 words.iter().map(|wd| wd.buf.as_ref()),
