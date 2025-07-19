@@ -2,10 +2,10 @@ use crate::{
     ngram_size::{NgramSize, NGRAM_MAX_LEN},
     ngrams::NgramString,
 };
-use ::std::sync::{Arc, LazyLock};
+use ::core::sync::atomic::Ordering;
+use atomic_float::AtomicF64;
 use compact_str::CompactString;
 use debug_unsafe::{arraystring::ArrayStringFrom, slice::SliceGetter};
-use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 
 pub(crate) type ModelNgrams<Ngram> = FxHashMap<Ngram, f64>;
@@ -33,10 +33,10 @@ pub(super) struct Model {
     pub(super) ngrams: ModelNgramsArr,
     pub(super) ngram_min_probability: f64,
     pub(super) wordgrams: ModelNgrams<CompactString>,
-    pub(super) wordgram_min_probability: Arc<RwLock<f64>>,
+    pub(super) wordgram_min_probability: &'static AtomicF64,
 }
 
-static WMP: LazyLock<Arc<RwLock<f64>>> = LazyLock::new(Default::default);
+static WMP: AtomicF64 = AtomicF64::new(0.0);
 
 impl Default for Model {
     #[inline]
@@ -45,15 +45,20 @@ impl Default for Model {
             ngrams: Default::default(),
             wordgrams: Default::default(),
             ngram_min_probability: f64::NEG_INFINITY,
-            wordgram_min_probability: WMP.clone(),
+            wordgram_min_probability: &WMP,
         }
     }
 }
 
 impl Model {
-    fn count_min_probability<Ngram>(model_ngrams: &ModelNgrams<Ngram>) -> f64 {
+    #[inline]
+    fn compute_min_probability(size: f64) -> f64 {
+        (1.0 / size).ln()
+    }
+
+    fn ngram_min_probability<Ngram>(model_ngrams: &ModelNgrams<Ngram>) -> f64 {
         if !model_ngrams.is_empty() {
-            (1.0 / model_ngrams.len() as f64).ln()
+            Self::compute_min_probability(model_ngrams.len() as f64)
         } else {
             f64::NEG_INFINITY
         }
@@ -61,11 +66,9 @@ impl Model {
 
     fn update_wordgram_min_probability<Ngram>(model_ngrams: &ModelNgrams<Ngram>) {
         if !model_ngrams.is_empty() {
-            let new_wordgram_min_probability = (1.0 / model_ngrams.len() as f64).ln();
-            let mut wordgram_min_probability = WMP.write();
-            if new_wordgram_min_probability < *wordgram_min_probability {
-                *wordgram_min_probability = new_wordgram_min_probability;
-            }
+            let new_wordgram_min_probability =
+                Self::compute_min_probability(model_ngrams.len() as f64);
+            WMP.fetch_min(new_wordgram_min_probability, Ordering::AcqRel);
         }
     }
 
@@ -76,7 +79,7 @@ impl Model {
         ngram_size: NgramSize,
     ) {
         if matches!(ngram_size, NgramSize::Uni) {
-            self.ngram_min_probability = Self::count_min_probability(&model_ngrams);
+            self.ngram_min_probability = Self::ngram_min_probability(&model_ngrams);
         }
         *self.ngrams.get_safe_unchecked_mut(ngram_size as usize) = model_ngrams;
     }
@@ -91,7 +94,7 @@ impl Model {
     #[inline]
     pub(super) fn new(ngrams: ModelNgramsArr, wordgrams: ModelNgrams<CompactString>) -> Self {
         let ngram_min_probability =
-            Self::count_min_probability(ngrams.get_safe_unchecked(NgramSize::Uni as usize));
+            Self::ngram_min_probability(ngrams.get_safe_unchecked(NgramSize::Uni as usize));
 
         Self::update_wordgram_min_probability(&wordgrams);
 
@@ -99,7 +102,7 @@ impl Model {
             ngrams,
             ngram_min_probability,
             wordgrams,
-            wordgram_min_probability: WMP.clone(),
+            wordgram_min_probability: &WMP,
         }
     }
 }

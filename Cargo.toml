@@ -25,6 +25,7 @@ alphabet_detector = { path = "../alphabet_detector", version = "0.9" }
 arraystring = "0.3"
 arrayvec = "0.7"
 atoi_simd = "0.16"
+atomic_float = "1"
 brotli = "8"
 compact_str = "0.9"
 debug_unsafe = { version = "0.1.2", features = ["arraystring"] }

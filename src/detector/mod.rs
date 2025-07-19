@@ -2,7 +2,7 @@ use crate::{
     ngram_size::{NgramSize, NgramSizes, NgramSizesTrait},
     ngrams::{prepare_ngrams, NgramString},
 };
-use ::core::cmp::Ordering;
+use ::core::{cmp::Ordering, sync::atomic};
 use ::std::collections::HashSet;
 use alphabet_detector::{
     fulltext_filter_with_margin, slang_arr_default, ScriptLanguage, ScriptLanguageArr,
@@ -168,7 +168,11 @@ impl<'m, H: RealHasher> Detector<'m, H> {
                 .get(ngram)
                 .copied()
                 .inspect(|_| cnt += 1)
-                .unwrap_or_else(|| *language_model_lock.wordgram_min_probability.read());
+                .unwrap_or_else(|| {
+                    language_model_lock
+                        .wordgram_min_probability
+                        .load(atomic::Ordering::Acquire)
+                });
 
             sum += probability;
         }
