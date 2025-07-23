@@ -67,7 +67,7 @@ impl Model {
     fn update_wordgram_min_probability<Ngram>(model_ngrams: &ModelNgrams<Ngram>) {
         if !model_ngrams.is_empty() {
             let new_wordgram_min_probability =
-                Self::compute_min_probability(model_ngrams.len() as f64);
+                Self::compute_min_probability(model_ngrams.len() as f64) * 4.0;
             WMP.fetch_min(new_wordgram_min_probability, Ordering::AcqRel);
         }
     }

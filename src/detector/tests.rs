@@ -612,10 +612,12 @@ fn test_detect_multiple_with_four_languages(
     case(Kazakh, "Балаларды жүзуге үй-рету бассейнінің үй-жайы"),
     case(English, "I know you әлем"),
     case(English, "love әлем"),
-    case(
+    case::unknown_words(
         English,
         "A vibrator, sometimes described as a massager, is a sex toy that is used on the body to produce pleasurable sexual stimulation"
     ),
+    case::mixed(English, "¿que? Hello, how are you? I am well, thank you."),
+    // case::mixed(English, "¿cómo estás? Hello, how are you? I am well, thank you."),
     // case(Arabic, "كيف حالك؟"),
 
     // words

@@ -249,19 +249,12 @@ impl<'m, H: RealHasher> Detector<'m, H> {
         probabilities: ScriptLanguageArr<(f64, usize)>,
         filtered_languages: Vec<ScriptLanguage>,
     ) -> Vec<(ScriptLanguage, f64)> {
-        let top_cnt = filtered_languages
-            .iter()
-            .map(|l| probabilities.get_safe_unchecked(*l as usize).1)
-            .max()
-            .unwrap_or_default()
-            .min(61);
-
         let mut res = Vec::with_capacity(filtered_languages.len());
         for language in filtered_languages.into_iter() {
             let (p, cnt) = *probabilities.get_safe_unchecked(language as usize);
             res.push((
                 language,
-                if cnt == 0 || cnt < top_cnt {
+                if cnt == 0 {
                     f64::NEG_INFINITY
                 } else {
                     p / cnt as f64
