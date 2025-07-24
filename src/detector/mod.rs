@@ -5,7 +5,7 @@ use crate::{
 use ::core::{cmp::Ordering, sync::atomic};
 use ::std::collections::HashSet;
 use alphabet_detector::{
-    fulltext_filter_with_margin, slang_arr_default, ScriptLanguage, ScriptLanguageArr,
+    fulltext_filter_with_margin, slang_arr_default, ScriptLanguage, ScriptLanguageArr, Word,
 };
 use debug_unsafe::{option::OptionUnwrapper, slice::SliceGetter};
 use fraction::Zero;
@@ -266,13 +266,14 @@ impl<'m, H: RealHasher> Detector<'m, H> {
     }
 
     /// Returns probabilities for the provided text.
-    /// Each value is a logarithmic probability between a negative infinity and 0.0.
+    /// Each value of `probabilities` in `ProbabilitiesExtra` is a logarithmic probability
+    /// between a negative infinity and 0.0. Also contains words.
     ///
     /// Result is sorted by probabilities in a descending order.
     ///
     /// If only a single language is identified by `alphabet_detector`,
     /// the value 0.0 will be returned.
-    pub fn probabilities(&self, text: &str) -> Vec<(ScriptLanguage, f64)> {
+    fn probabilities_extra(&self, text: &str) -> ProbabilitiesExtra {
         if text.is_empty() {
             return Default::default();
         }
@@ -292,7 +293,11 @@ impl<'m, H: RealHasher> Detector<'m, H> {
                 .into_iter()
                 .next()
                 .unwrap_safe_unchecked();
-            return vec![(lang, 0.0)];
+
+            return ProbabilitiesExtra {
+                probabilities: vec![(lang, 0.0)],
+                words,
+            };
         }
 
         let characters_count: usize = words.iter().map(|wd| wd.buf.len()).sum();
@@ -351,7 +356,22 @@ impl<'m, H: RealHasher> Detector<'m, H> {
             &probabilities_mean[..probabilities_mean.len().min(5)]
         ); */
 
-        probabilities_mean
+        ProbabilitiesExtra {
+            probabilities: probabilities_mean,
+            words,
+        }
+    }
+
+    /// Returns probabilities for the provided text.
+    /// Each value is a logarithmic probability between a negative infinity and 0.0.
+    ///
+    /// Result is sorted by probabilities in a descending order.
+    ///
+    /// If only a single language is identified by `alphabet_detector`,
+    /// the value 0.0 will be returned.
+    #[inline]
+    pub fn probabilities(&self, text: &str) -> Vec<(ScriptLanguage, f64)> {
+        self.probabilities_extra(text).probabilities
     }
 
     /// Returns probabilities for the provided text relative to other languages.
@@ -397,24 +417,31 @@ impl<'m, H: RealHasher> Detector<'m, H> {
     }
 
     /// Detects a top one language of the provided text.
-    /// For short phrases (<= 30 chars), if multiple languages are covered by `reorder_distance`,
+    /// If multiple languages are covered by reorder distance (result of `reorder_distance_compute`),
     /// reorders by total speakers of these languages.
     ///
-    /// `reorder_distance` is a distance between logarithmic probabilities, 0.2 is recommended.
+    /// Reorder distance is a distance between logarithmic probabilities, must be >= 0.0.
     ///
     /// [`None`] is returned only when `probabilities` is empty.
-    pub fn detect_top_one(&self, text: &str, reorder_distance: f64) -> Option<ScriptLanguage> {
+    pub fn detect_top_one_reordered_custom<F>(
+        &self,
+        text: &str,
+        reorder_distance_compute: F,
+    ) -> Option<ScriptLanguage>
+    where
+        F: FnOnce(Vec<Word<Vec<char>>>) -> f64,
+    {
+        let ProbabilitiesExtra {
+            mut probabilities,
+            words,
+        } = self.probabilities_extra(text);
+
+        let (_first_language, first_probability) = *probabilities.first()?;
+
+        let reorder_distance = reorder_distance_compute(words);
         debug_assert!(reorder_distance >= 0.0, "Reorder distance must be >= 0.0");
 
-        let mut probabilities = self.probabilities(text);
-
-        let (first_language, first_probability) = *probabilities.first()?;
-        if text.len() > 30 {
-            return Some(first_language);
-        }
-
         let reorder_probability = first_probability - reorder_distance;
-
         let lim = probabilities
             .iter()
             .position(|(_, p)| *p < reorder_probability)
@@ -423,6 +450,48 @@ impl<'m, H: RealHasher> Detector<'m, H> {
         probabilities.sort_unstable_by(|a, b| a.0.cmp(&b.0));
 
         probabilities.first().map(|(l, _)| *l)
+    }
+
+    /// Detects a top one language of the provided text.
+    /// If multiple languages are covered by the reorder formula,
+    /// reorders by total speakers of these languages.
+    /// More sutable if you need better detection of common (more popular) languages.
+    ///
+    /// [`None`] is returned only when `probabilities` is empty.
+    pub fn detect_top_one_reordered(&self, text: &str) -> Option<ScriptLanguage> {
+        self.detect_top_one_reordered_custom(
+            text,
+            #[inline]
+            |words: Vec<Word<Vec<char>>>| {
+                let characters_bytes_count: usize = words
+                    .iter()
+                    .flat_map(|wd| wd.buf.iter().map(|c| c.len_utf8()))
+                    .sum();
+
+                1.35 / (characters_bytes_count + words.len().pow(3) - 1) as f64
+            },
+        )
+    }
+
+    /// Detects a top one language of the provided text.
+    /// More sutable if you need better detection of rare (less popular) languages.
+    ///
+    /// [`None`] is returned only when `probabilities` is empty.
+    pub fn detect_top_one_raw(&self, text: &str) -> Option<ScriptLanguage> {
+        self.detect_top_one_reordered_custom(
+            text,
+            #[inline]
+            |_| 0.0,
+        )
+    }
+
+    #[inline(always)]
+    pub fn detect_top_one(&self, text: &str, reorder: bool) -> Option<ScriptLanguage> {
+        if reorder {
+            self.detect_top_one_reordered(text)
+        } else {
+            self.detect_top_one_raw(text)
+        }
     }
 }
 
@@ -481,4 +550,10 @@ fn transform_to_relative_probabilities(probabilities: &mut Vec<(ScriptLanguage, 
     probabilities
         .iter_mut()
         .for_each(|(_, p)| *p /= denominator);
+}
+
+#[derive(Default, Debug, Clone)]
+struct ProbabilitiesExtra {
+    probabilities: Vec<(ScriptLanguage, f64)>,
+    words: Vec<Word<Vec<char>>>,
 }

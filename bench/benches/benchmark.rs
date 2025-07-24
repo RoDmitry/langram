@@ -52,7 +52,7 @@ fn benchmark_detector(c: &mut Criterion) {
     group_all_preloaded.bench_function("all ngrams", |bencher| {
         bencher.iter(|| {
             SENTENCES.iter().for_each(|sentence| {
-                black_box(detector_all_languages_all_ngrams.detect_top_one(sentence, 0.0));
+                black_box(detector_all_languages_all_ngrams.detect_top_one_raw(sentence));
             });
         });
     });
@@ -62,7 +62,7 @@ fn benchmark_detector(c: &mut Criterion) {
     group_all_preloaded.bench_function("max trigrams", |bencher| {
         bencher.iter(|| {
             SENTENCES.iter().for_each(|sentence| {
-                black_box(detector_all_languages_max_trigrams.detect_top_one(sentence, 0.0));
+                black_box(detector_all_languages_max_trigrams.detect_top_one_raw(sentence));
             });
         });
     });
@@ -72,14 +72,14 @@ fn benchmark_detector(c: &mut Criterion) {
     group2.bench_function("all ngrams", |bencher| {
         bencher.iter(|| {
             SENTENCES.par_iter().for_each(|sentence| {
-                black_box(detector_all_languages_all_ngrams.detect_top_one(sentence, 0.0));
+                black_box(detector_all_languages_all_ngrams.detect_top_one_raw(sentence));
             });
         });
     });
     group2.bench_function("max trigrams", |bencher| {
         bencher.iter(|| {
             SENTENCES.par_iter().for_each(|sentence| {
-                black_box(detector_all_languages_max_trigrams.detect_top_one(sentence, 0.0));
+                black_box(detector_all_languages_max_trigrams.detect_top_one_raw(sentence));
             });
         });
     });
@@ -98,7 +98,7 @@ fn benchmark_detector(c: &mut Criterion) {
     group_common_preloaded.bench_function("all ngrams", |bencher| {
         bencher.iter(|| {
             SENTENCES.iter().for_each(|sentence| {
-                black_box(detector_common_languages_all_ngrams.detect_top_one(sentence, 0.0));
+                black_box(detector_common_languages_all_ngrams.detect_top_one_raw(sentence));
             });
         });
     });
@@ -115,7 +115,7 @@ fn benchmark_detector(c: &mut Criterion) {
     group_common_preloaded.bench_function("max trigrams", |bencher| {
         bencher.iter(|| {
             SENTENCES.iter().for_each(|sentence| {
-                black_box(detector_common_languages_max_trigrams.detect_top_one(sentence, 0.0));
+                black_box(detector_common_languages_max_trigrams.detect_top_one_raw(sentence));
             });
         });
     });
@@ -126,7 +126,7 @@ fn benchmark_detector(c: &mut Criterion) {
         bencher.iter(|| {
             SENTENCES.par_iter().for_each(|sentence| {
                 black_box(
-                    detector_common_languages_all_ngrams.detect_top_one(sentence, 0.0)),
+                    detector_common_languages_all_ngrams.detect_top_one_raw(sentence)),
                 );
             });
         });
@@ -134,7 +134,7 @@ fn benchmark_detector(c: &mut Criterion) {
     group4.bench_function("max trigrams", |bencher| {
         bencher.iter(|| {
             SENTENCES.par_iter().for_each(|sentence| {
-                black_box(detector_common_languages_max_trigrams.detect_top_one(sentence, 0.0));
+                black_box(detector_common_languages_max_trigrams.detect_top_one_raw(sentence));
             });
         });
     });

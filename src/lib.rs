@@ -9,7 +9,7 @@
 //!
 //! # Example
 //! ```rust
-//! use langram::*;
+//! use langram::{DetectorBuilder, ModelsStorage};
 //!
 //! let models_storage = ModelsStorage::default();
 //! let detector = DetectorBuilder::new(&models_storage).build();
@@ -18,7 +18,7 @@
 //!
 //! // single thread
 //! let text = "text";
-//! let result = detector.detect_top_one(text, 0.2);
+//! let result = detector.detect_top_one_reordered(text);
 //!
 //! // or multithreaded (rayon for example)
 //! use rayon::iter::IntoParallelRefIterator;
@@ -27,7 +27,7 @@
 //! let texts = &["text1", "text2"];
 //! let results: Vec<_> = texts
 //!     .par_iter()
-//!     .map(|text| detector.detect_top_one(text, 0.2))
+//!     .map(|text| detector.detect_top_one_reordered(text))
 //!     .collect();
 //! ```
 //! `detector` also has [other methods](struct.Detector.html#implementations)

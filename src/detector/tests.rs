@@ -316,11 +316,11 @@ fn test_mock_probabilities_relative_no_filter(
     case("Alter", Some(German)),
     case("проарплап", None)
 )]
-fn test_mock_detect_top_one(word: &str, expected_language: Option<ScriptLanguage>) {
+fn test_mock_detect_top_one_raw(word: &str, expected_language: Option<ScriptLanguage>) {
     let detector = DetectorBuilder::new(&MOCK_MODELS_ENGLISH_AND_GERMAN)
         .languages(ahashset!(English, German))
         .build();
-    let detected_language = detector.detect_top_one(word, 0.0);
+    let detected_language = detector.detect_top_one_raw(word);
     assert_eq!(detected_language, expected_language);
 }
 
@@ -329,9 +329,9 @@ fn test_mock_detect_top_one(word: &str, expected_language: Option<ScriptLanguage
     expected_language,
     case::script_no_models("ꨕ", Some(ChamEastern))
 )]
-fn test_mock_detect_top_one_no_filter(word: &str, expected_language: Option<ScriptLanguage>) {
+fn test_mock_detect_top_one_raw_no_filter(word: &str, expected_language: Option<ScriptLanguage>) {
     let detector = DetectorBuilder::new(&MOCK_MODELS_ENGLISH_AND_GERMAN).build();
-    let detected_language = detector.detect_top_one(word, 0.0);
+    let detected_language = detector.detect_top_one_raw(word);
     assert_eq!(detected_language, expected_language);
 }
 
@@ -721,20 +721,27 @@ fn test_detect_multiple_with_four_languages(
     // case(Slovak, "rozohňuje"),
     // case(Vietnamese, "ravị"),
 )]
-fn test_detect_top_one_or_none(expected_language: ScriptLanguage, text: &str) {
+fn test_detect_top_one_raw(expected_language: ScriptLanguage, text: &str) {
     let detector = DetectorBuilder::new(&MODELS_ALL_LANGUAGES_PRELOADED).build();
+    assert_eq!(
+        detector.detect_top_one_raw(text),
+        Some(expected_language),
+        "detect_top_one_raw {}",
+        text
+    );
+
     assert_eq!(
         detector.detect_top_one_or_none(text, 0.0),
         Some(expected_language),
-        "{}",
+        "detect_top_one_or_none {}",
         text
     );
 
     // extra check, same as `test_detect_top_one_reordered` below
     assert_eq!(
-        detector.detect_top_one(text, 0.2),
+        detector.detect_top_one_reordered(text),
         Some(expected_language),
-        "{}",
+        "detect_top_one_reordered {}",
         text
     );
 }
@@ -750,12 +757,14 @@ fn test_detect_top_one_or_none(expected_language: ScriptLanguage, text: &str) {
     // case(English, "soup"),
     case(English, "I'm"),
     case(English, "Is"),
-    // case(English, "a"),
+    case(English, "a"),
+    // case(English, "I am"),
+    // case(English, "I am a"),
 )]
 fn test_detect_top_one_reordered(expected_language: ScriptLanguage, text: &str) {
     let detector = DetectorBuilder::new(&MODELS_ALL_LANGUAGES_PRELOADED).build();
     assert_eq!(
-        detector.detect_top_one(text, 0.2),
+        detector.detect_top_one_reordered(text),
         Some(expected_language),
         "{}",
         text
@@ -772,14 +781,14 @@ fn test_detect_top_one_reordered(expected_language: ScriptLanguage, text: &str) 
         ahashset!(Hungarian, Slovak)
     )
 )]
-fn test_detect_top_one_is_deterministic(text: &str, languages: AHashSet<ScriptLanguage>) {
+fn test_detect_top_one_raw_is_deterministic(text: &str, languages: AHashSet<ScriptLanguage>) {
     let detector = DetectorBuilder::new(&MODELS_ALL_LANGUAGES_PRELOADED)
         .languages(languages.clone().into())
         .build();
 
     let mut detected_languages = AHashSet::new();
     for _ in 0..100 {
-        let language = detector.detect_top_one(text, 0.0);
+        let language = detector.detect_top_one_raw(text);
         detected_languages.insert(language.unwrap());
     }
     assert_eq!(
@@ -796,7 +805,7 @@ fn test_detect_top_one_is_deterministic(text: &str, languages: AHashSet<ScriptLa
     languages,
     case::arab(Arabic, "والموضوع", ahashset![English, Arabic]),
 )]
-fn test_detect_top_one_with_languages(
+fn test_detect_top_one_raw_with_languages(
     expected_language: ScriptLanguage,
     text: &str,
     languages: AHashSet<ScriptLanguage>,
@@ -805,7 +814,7 @@ fn test_detect_top_one_with_languages(
         DetectorConfig::with_languages(languages.into()),
         &MODELS_ALL_LANGUAGES_PRELOADED,
     );
-    let language = detector.detect_top_one(text, 0.0).unwrap();
+    let language = detector.detect_top_one_raw(text).unwrap();
     assert_eq!(language, expected_language);
 } */
 
@@ -832,9 +841,9 @@ fn assert_language_filtering_with_rules_text_panics(
 } */
 
 #[rstest(invalid_str, case(""), case(" \n  \t;"), case("3<856%)§"))]
-fn test_strings_without_letters(invalid_str: &str) {
+fn test_no_text(invalid_str: &str) {
     let detector = DetectorBuilder::new(&MODELS_ALL_LANGUAGES_PRELOADED).build();
-    assert_eq!(detector.detect_top_one(invalid_str, 0.0), None);
+    assert_eq!(detector.detect_top_one_raw(invalid_str), None);
 }
 
 #[test]
@@ -844,9 +853,9 @@ fn test_max_trigrams_mode() {
         .max_trigrams()
         .build();
 
-    assert!(detector.detect_top_one("bed", 0.0).is_some());
-    assert!(detector.detect_top_one("be", 0.0).is_some());
-    assert!(detector.detect_top_one("b", 0.0).is_some());
+    assert!(detector.detect_top_one_raw("bed").is_some());
+    assert!(detector.detect_top_one_raw("be").is_some());
+    assert!(detector.detect_top_one_raw("b").is_some());
 
-    assert!(detector.detect_top_one("", 0.0).is_none());
+    assert!(detector.detect_top_one_raw("").is_none());
 }
