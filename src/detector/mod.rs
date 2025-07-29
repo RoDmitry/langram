@@ -11,10 +11,10 @@ use debug_unsafe::{option::OptionUnwrapper, slice::SliceGetter};
 use fraction::Zero;
 
 mod builder;
+#[cfg(test)]
+mod mock_tests;
 mod model;
 mod storage;
-#[cfg(test)]
-mod tests;
 
 pub use builder::DetectorBuilder;
 use builder::RealHasher;

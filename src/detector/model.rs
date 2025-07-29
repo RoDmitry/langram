@@ -36,6 +36,11 @@ pub(super) struct Model {
     pub(super) wordgram_min_probability: &'static AtomicF64,
 }
 
+// fix: if multiple detectors with different langages are used,
+// wordgram probabilities can fluctuate based on the wordgrams preloading order.
+// Example: if detectors are in `LazyLock` even with preloading used.
+// The order of usage of such detectors will influence the wordgram probabilities,
+// because `LazyLock` will preload models only once used.
 static WMP: AtomicF64 = AtomicF64::new(0.0);
 
 impl Default for Model {
@@ -64,10 +69,10 @@ impl Model {
         }
     }
 
-    fn update_wordgram_min_probability<Ngram>(model_ngrams: &ModelNgrams<Ngram>) {
-        if !model_ngrams.is_empty() {
+    fn update_wordgram_min_probability<Ngram>(model_wordgrams: &ModelNgrams<Ngram>) {
+        if !model_wordgrams.is_empty() {
             let new_wordgram_min_probability =
-                Self::compute_min_probability(model_ngrams.len() as f64) * 4.0;
+                Self::compute_min_probability(model_wordgrams.len() as f64) * 4.0;
             WMP.fetch_min(new_wordgram_min_probability, Ordering::AcqRel);
         }
     }

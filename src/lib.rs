@@ -32,7 +32,7 @@
 //! ```
 //! `detector` also has [other methods](struct.Detector.html#implementations)
 
-#[allow(unused_macros)]
+#[cfg(test)]
 macro_rules! ahashmap {
     (@single $($x:tt)*) => (());
     (@count $($rest:expr),*) => (<[()]>::len(&[$(ahashmap!(@single $rest)),*]));
@@ -50,7 +50,8 @@ macro_rules! ahashmap {
     };
 }
 
-#[allow(unused_macros)]
+#[cfg(debug_assertions)]
+#[macro_export]
 macro_rules! ahashset {
     (@single $($x:tt)*) => (());
     (@count $($rest:expr),*) => (<[()]>::len(&[$(ahashset!(@single $rest)),*]));
