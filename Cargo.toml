@@ -1,6 +1,6 @@
 [package]
 name = "langram"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["Dmitry Rodionov <gh@rdmtr.com>"]
 description = "Natural language detection library"
 documentation = "https://docs.rs/langram/"
@@ -47,4 +47,4 @@ rayon = "1"
 
 [dev-dependencies]
 float-cmp = "0.10"
-rstest = "0.25"
+rstest = "0.26"
