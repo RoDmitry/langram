@@ -11,7 +11,7 @@ Uses [`alphabet_detector`](https://github.com/RoDmitry/alphabet_detector) as a w
 
 Based on chars (1 - 5) and 1 word [n-gram language model](https://en.wikipedia.org/wiki/Word_n-gram_language_model) modified algorithm.
 
-[`ModelsStorage`](https://docs.rs/langram/latest/langram/struct.ModelsStorage.html) with all models preloaded uses around 4.1GB of RAM (2.4GB using max_trigrams). There can be a way (unimplemented) to unload each language model after use, it will work slower but will use around 300MB of RAM.
+[`ModelsStorage`](https://docs.rs/langram/latest/langram/struct.ModelsStorage.html) with all models preloaded uses around 4.1GB of RAM (2.4GB using max_trigrams). There can be a way (unimplemented) to unload each language model after use, it will work slower but will use around 300MB of RAM. Or maybe can use some DB for models storage on disk, rather than a HashMap in RAM.
 
 This library is a complete rewrite of Lingua: much faster, more accuracy, more languages, etc.
 
