@@ -21,6 +21,15 @@ static MODELS_ALL_LANGUAGES_PRELOADED: LazyLock<ModelsStorage> = LazyLock::new(|
     ),
     case::mixed(English, "¿que? Hello, how are you? I am well, thank you."),
     // case::mixed(English, "¿cómo estás? Hello, how are you? I am well, thank you."),
+    case(NorwegianBokmal, "Et Sprang i Tiden"),
+    case(NorwegianBokmal, "Løvenes konge"),
+    case(NorwegianBokmal, "Det kommer båter"),
+    case(NorwegianBokmal, "Om hester og menn"),
+    case(NorwegianBokmal, "Fødeavdelingen"),
+    case(NorwegianBokmal, "Fabeldyr: Grindelwalds Forbrytelser"),
+    case(NorwegianNynorsk, "Kor gamal er ho?"),
+    case(NorwegianNynorsk, "Det er heilt topp"),
+    case(NorwegianNynorsk, "Skal vi vere vener?"),
     // case(Arabic, "كيف حالك؟"),
 
     // words
