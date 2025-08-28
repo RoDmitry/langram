@@ -50,7 +50,6 @@ pub fn create_model_and_write_files(
                 None
             }
         })
-        // .map(|wld| wld.buf)
         .collect();
 
     if is_han {
@@ -60,61 +59,75 @@ pub fn create_model_and_write_files(
         });
     }
 
-    let unigram_model = TrainingModel::new_windows(&word_chars, AHashMap::new(), 1);
+    println!(
+        "{:?} processing unigrams",
+        out_mod_path.file_name().unwrap()
+    );
+    let unigram_model = TrainingModel::new_windows(&word_chars, 1);
     unigram_model
-        .to_file_model(&[])
+        .to_file_model(AHashMap::new(), &[])
         .write_compressed(&out_mod_path.join("unigrams.encom.br"))?;
     let TrainingModel {
         absolute_frequencies,
-        ..
     } = unigram_model;
 
+    // adds underscores '_'
+    // have been tested, it makes detection worse.
+    /* let word_chars_with_underscores: Vec<_> = word_chars
+    .iter()
+    .map(|w| {
+        let mut wnew = Vec::with_capacity(w.len() + 2);
+        wnew.push('_');
+        wnew.extend(w.iter());
+        wnew.push('_');
+        wnew
+    })
+    .collect(); */
+
     println!("{:?} processing bigrams", out_mod_path.file_name().unwrap());
-    let bigram_model = TrainingModel::new_windows(&word_chars, absolute_frequencies, 2);
+    let bigram_model = TrainingModel::new_windows(&word_chars, 2);
     bigram_model
-        .to_file_model(&[])
+        .to_file_model(absolute_frequencies, &[])
         .write_compressed(&out_mod_path.join("bigrams.encom.br"))?;
+
     if is_han {
         return Ok(());
     }
     let TrainingModel {
         absolute_frequencies,
-        ..
     } = bigram_model;
 
     println!(
         "{:?} processing trigrams",
         out_mod_path.file_name().unwrap()
     );
-    let trigram_model = TrainingModel::new_windows(&word_chars, absolute_frequencies, 3);
+    let trigram_model = TrainingModel::new_windows(&word_chars, 3);
     trigram_model
-        .to_file_model(&[])
+        .to_file_model(absolute_frequencies, &[])
         .write_compressed(&out_mod_path.join("trigrams.encom.br"))?;
     let TrainingModel {
         absolute_frequencies,
-        ..
     } = trigram_model;
 
     println!(
         "{:?} processing quadrigrams",
         out_mod_path.file_name().unwrap()
     );
-    let quadrigram_model = TrainingModel::new_windows(&word_chars, absolute_frequencies, 4);
+    let quadrigram_model = TrainingModel::new_windows(&word_chars, 4);
     quadrigram_model
-        .to_file_model(&[])
+        .to_file_model(absolute_frequencies, &[])
         .write_compressed(&out_mod_path.join("quadrigrams.encom.br"))?;
     let TrainingModel {
         absolute_frequencies,
-        ..
     } = quadrigram_model;
 
     println!(
         "{:?} processing fivegrams",
         out_mod_path.file_name().unwrap()
     );
-    let fivegram_model = TrainingModel::new_windows(&word_chars, absolute_frequencies, 5);
+    let fivegram_model = TrainingModel::new_windows(&word_chars, 5);
     fivegram_model
-        .to_file_model(&[])
+        .to_file_model(absolute_frequencies, &[])
         .write_compressed(&out_mod_path.join("fivegrams.encom.br"))?;
     drop(fivegram_model);
 
@@ -122,8 +135,8 @@ pub fn create_model_and_write_files(
         "{:?} processing wordgrams",
         out_mod_path.file_name().unwrap()
     );
-    let wordgram_model = TrainingModel::new(&word_chars, AHashMap::new());
+    let wordgram_model = TrainingModel::new(&word_chars);
     wordgram_model
-        .to_file_model(&[' '])
+        .to_file_model(AHashMap::new(), &[' '])
         .write_compressed(&out_mod_path.join("wordgrams.encom.br"))
 }

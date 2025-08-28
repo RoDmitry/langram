@@ -5,14 +5,10 @@ use langram::{FileModel, Fraction};
 #[derive(Debug)]
 pub(crate) struct TrainingModel<'t> {
     pub(crate) absolute_frequencies: AHashMap<&'t [char], usize>,
-    lower_ngram_absolute_frequencies: AHashMap<&'t [char], usize>,
 }
 
 impl<'t> TrainingModel<'t> {
-    pub(crate) fn new(
-        words_chars: &'t [Vec<char>],
-        lower_ngram_absolute_frequencies: AHashMap<&'t [char], usize>,
-    ) -> Self {
+    pub(crate) fn new(words_chars: &'t [Vec<char>]) -> Self {
         let mut absolute_frequencies = AHashMap::new();
         for chars in words_chars.iter() {
             *absolute_frequencies.entry(chars.as_ref()).or_default() += 1;
@@ -20,15 +16,10 @@ impl<'t> TrainingModel<'t> {
 
         Self {
             absolute_frequencies,
-            lower_ngram_absolute_frequencies,
         }
     }
 
-    pub(crate) fn new_windows(
-        words_chars: &'t [Vec<char>],
-        lower_ngram_absolute_frequencies: AHashMap<&'t [char], usize>,
-        ngram_length: usize,
-    ) -> Self {
+    pub(crate) fn new_windows(words_chars: &'t [Vec<char>], ngram_length: usize) -> Self {
         let mut absolute_frequencies = AHashMap::new();
         for chars in words_chars.iter() {
             for ngram in chars.windows(ngram_length) {
@@ -40,26 +31,26 @@ impl<'t> TrainingModel<'t> {
 
         Self {
             absolute_frequencies,
-            lower_ngram_absolute_frequencies,
         }
     }
 
-    fn compute_relative_frequencies(&self) -> AHashMap<GenericFraction<usize>, Vec<&'t [char]>> {
+    fn compute_relative_frequencies(
+        &self,
+        lower_ngram_absolute_frequencies: AHashMap<&'t [char], usize>,
+    ) -> AHashMap<GenericFraction<usize>, Vec<&'t [char]>> {
         let total_count = self.absolute_frequencies.values().sum::<usize>();
         let mut ngram_probabilities: AHashMap<GenericFraction<usize>, Vec<_>> = AHashMap::new();
 
         for (&ngram, &frequency) in self.absolute_frequencies.iter() {
-            let denominator = if self.lower_ngram_absolute_frequencies.is_empty() {
+            let denominator = if lower_ngram_absolute_frequencies.is_empty() {
                 total_count
             } else {
-                let Some(&start_ngram_abs_fr) = self
-                    .lower_ngram_absolute_frequencies
-                    .get(&ngram[..ngram.len() - 1])
+                let Some(&start_ngram_abs_fr) =
+                    lower_ngram_absolute_frequencies.get(&ngram[..ngram.len() - 1])
                 else {
                     continue;
                 };
-                let Some(&end_ngram_abs_fr) =
-                    self.lower_ngram_absolute_frequencies.get(&ngram[1..])
+                let Some(&end_ngram_abs_fr) = lower_ngram_absolute_frequencies.get(&ngram[1..])
                 else {
                     continue;
                 };
@@ -72,8 +63,13 @@ impl<'t> TrainingModel<'t> {
         ngram_probabilities
     }
 
-    pub(crate) fn to_file_model(&self, join: &[char]) -> FileModel {
-        let relative_frequencies = self.compute_relative_frequencies();
+    pub(crate) fn to_file_model(
+        &self,
+        lower_ngram_absolute_frequencies: AHashMap<&'t [char], usize>,
+        join: &[char],
+    ) -> FileModel {
+        let relative_frequencies =
+            self.compute_relative_frequencies(lower_ngram_absolute_frequencies);
         let mut sorted: Vec<_> = relative_frequencies.into_iter().collect();
         sorted.sort_unstable_by(|a, b| b.0.cmp(&a.0));
 
