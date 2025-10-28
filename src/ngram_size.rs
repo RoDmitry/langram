@@ -1,10 +1,11 @@
 use arrayvec::ArrayVec;
 use strum::EnumCount;
-use strum_macros::EnumCount;
+use strum_macros::{EnumCount, EnumIter};
 
+#[cfg(test)]
 pub(crate) const NGRAM_MAX_LEN: usize = 5;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, EnumCount)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, EnumCount, EnumIter)]
 #[repr(usize)]
 pub enum NgramSize {
     Uni = 0,
@@ -13,6 +14,20 @@ pub enum NgramSize {
     Quadri = 3,
     Five = 4,
     Word = 5,
+}
+
+impl NgramSize {
+    #[inline]
+    pub const fn into_file_name(self) -> &'static str {
+        match self {
+            Self::Uni => "unigrams.encom.br",
+            Self::Bi => "bigrams.encom.br",
+            Self::Tri => "trigrams.encom.br",
+            Self::Quadri => "quadrigrams.encom.br",
+            Self::Five => "fivegrams.encom.br",
+            Self::Word => "wordgrams.encom.br",
+        }
+    }
 }
 
 impl From<usize> for NgramSize {
@@ -28,23 +43,9 @@ impl From<usize> for NgramSize {
     }
 }
 
-impl NgramSize {
-    #[inline]
-    pub(crate) fn into_file_name(self) -> &'static str {
-        match self {
-            Self::Uni => "unigrams.encom.br",
-            Self::Bi => "bigrams.encom.br",
-            Self::Tri => "trigrams.encom.br",
-            Self::Quadri => "quadrigrams.encom.br",
-            Self::Five => "fivegrams.encom.br",
-            Self::Word => "wordgrams.encom.br",
-        }
-    }
-}
+pub type NgramSizes = ArrayVec<NgramSize, { NgramSize::COUNT }>;
 
-pub(super) type NgramSizes = ArrayVec<NgramSize, { NgramSize::COUNT }>;
-
-pub(super) trait NgramSizesTrait: Sized {
+pub trait NgramSizesTrait: Sized {
     fn merge(&mut self, ngram_sizes: impl Iterator<Item = NgramSize>);
     fn new_merged(ngram_sizes: impl Iterator<Item = NgramSize>) -> Self;
 }

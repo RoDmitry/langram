@@ -3,9 +3,8 @@ use ahash::AHashSet;
 use langram::{ahashset, DetectorBuilder, ModelsStorage, ScriptLanguage, ScriptLanguage::*};
 use rstest::*;
 
-static MODELS_ALL_LANGUAGES_PRELOADED: LazyLock<ModelsStorage> = LazyLock::new(|| {
-    ModelsStorage::preloaded::<ahash::RandomState>(ScriptLanguage::all().collect())
-});
+static MODELS_ALL_LANGUAGES_PRELOADED: LazyLock<ModelsStorage> =
+    LazyLock::new(|| ModelsStorage::new().unwrap());
 
 #[rstest(
     expected_language,
@@ -195,7 +194,7 @@ fn test_detect_top_one_reordered(expected_language: ScriptLanguage, text: &str) 
 )]
 fn test_detect_top_one_raw_is_deterministic(text: &str, languages: AHashSet<ScriptLanguage>) {
     let detector = DetectorBuilder::new(&MODELS_ALL_LANGUAGES_PRELOADED)
-        .languages(languages.clone().into())
+        .languages(languages.clone())
         .build();
 
     let mut detected_languages = AHashSet::new();

@@ -1,41 +1,23 @@
 use crate::{
-    detector::{ModelNgrams, NgramFromChars},
     fraction::Fraction,
+    model::{Model, ModelNgrams},
     NgramSize,
 };
 use ::std::{
-    hash::Hash,
-    io::{self, Cursor, ErrorKind, Read},
-    iter::Map,
+    fs::File,
+    io::{self, Read},
     path::PathBuf,
-    str::{Chars, Split},
 };
-use alphabet_detector::ScriptLanguage;
 use brotli::Decompressor;
-use itertools::{IntoChunks, Itertools};
+use debug_unsafe::slice::SliceGetter;
+use itertools::Itertools;
 use serde_map::SerdeMap;
+use strum::IntoEnumIterator;
+use thiserror::Error;
 
 pub type FileModel = (usize, SerdeMap<Fraction, String>);
 
-fn get_model(file_path: PathBuf) -> io::Result<FileModel> {
-    // const, so it must be optimized out by the compiler
-    if langram_models::MODELS_DIR.entries().len() < 2 {
-        panic!("Models dir is empty. Path to `langram_models` crate must be changed.");
-    }
-
-    let compressed_file = langram_models::MODELS_DIR
-        .get_file(file_path)
-        .ok_or(ErrorKind::NotFound)?;
-    let compressed_file_reader = Cursor::new(compressed_file.contents());
-    let mut uncompressed_file = Decompressor::new(compressed_file_reader, 4096);
-    let mut uncompressed_file_content = String::new();
-    uncompressed_file.read_to_string(&mut uncompressed_file_content)?;
-
-    // todo: from_reader once implemented
-    serde_encom::from_str(&uncompressed_file_content).map_err(|e| e.into())
-}
-
-fn unwrap_model(model: io::Result<FileModel>, file_path: PathBuf) -> Option<FileModel> {
+/* fn unwrap_model(model: io::Result<FileModel>, file_path: PathBuf) -> Option<FileModel> {
     match model {
         Ok(m) => Some(m),
         Err(e) => {
@@ -49,15 +31,9 @@ fn unwrap_model(model: io::Result<FileModel>, file_path: PathBuf) -> Option<File
             None
         }
     }
-}
+} */
 
-pub(crate) fn load_model(language: ScriptLanguage, ngram_size: NgramSize) -> Option<FileModel> {
-    let file_path = PathBuf::from(language.into_str()).join(ngram_size.into_file_name());
-    let model = get_model(file_path.clone());
-    unwrap_model(model, file_path)
-}
-
-pub(crate) trait IntoIteratorBorrowed<'i>: Sized + Clone {
+/* pub(crate) trait IntoIteratorBorrowed<'i>: Sized + Clone {
     fn to_iter(&self) -> impl Iterator<Item = impl Iterator<Item = char>>;
 }
 
@@ -76,12 +52,12 @@ impl<'i, T: FnMut(&'i str) -> Chars<'i> + Clone> IntoIteratorBorrowed<'i>
         // todo: optimize somehow?
         self.to_owned()
     }
-}
+} */
 
-pub(crate) struct ChunksNgramsUnpacker;
 pub(crate) struct SpaceNgramsUnpacker;
+pub(crate) struct ChunksNgramsUnpacker;
 
-pub(crate) trait NgramsUnpacker: Sized {
+/* pub(crate) trait NgramsUnpacker: Sized {
     fn unpack<'a>(ngrams: &'a str, ngram_size: NgramSize) -> impl IntoIteratorBorrowed<'a>;
 }
 
@@ -97,37 +73,84 @@ impl NgramsUnpacker for SpaceNgramsUnpacker {
     fn unpack<'a>(ngrams: &'a str, _ngram_size: NgramSize) -> impl IntoIteratorBorrowed<'a> {
         ngrams.split(' ').map(|s| s.chars())
     }
+} */
+
+pub(crate) trait NgramsUnpacker: Sized {
+    fn unpack(ngrams: String, ngram_size: NgramSize) -> Vec<String>;
 }
 
-pub(crate) fn parse_model<Ngram: NgramFromChars + Eq + Hash, NU: NgramsUnpacker>(
-    file_model: Option<FileModel>,
-    ngram_size: NgramSize,
-) -> ModelNgrams<Ngram> {
-    match file_model {
-        Some(m) => {
-            // somehow extra initial space, makes detection faster, and gives more stable benchmark results
-            let mut res =
-                ModelNgrams::<Ngram>::with_capacity_and_hasher(m.0 << 1, Default::default());
-            for (fraction, ngrams) in m.1 {
-                let floating_point_value = fraction.to_f64().ln();
-                for ngram in NU::unpack(&ngrams, ngram_size).to_iter() {
-                    res.insert(Ngram::from_chars(ngram), floating_point_value);
-                }
-            }
-            res.shrink_to_fit();
-            res
-        }
-        None => ModelNgrams::<Ngram>::with_capacity_and_hasher(1, Default::default()),
+impl NgramsUnpacker for ChunksNgramsUnpacker {
+    // very unoptimal, reallocation
+    #[inline(always)]
+    fn unpack(ngrams: String, ngram_size: NgramSize) -> Vec<String> {
+        ngrams
+            .chars()
+            .chunks(ngram_size as usize + 1)
+            .into_iter()
+            .map(|s| s.collect())
+            .collect()
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::ngram_size::NgramSize;
+impl NgramsUnpacker for SpaceNgramsUnpacker {
+    // very unoptimal, reallocation
+    #[inline(always)]
+    fn unpack(ngrams: String, _ngram_size: NgramSize) -> Vec<String> {
+        ngrams.split(' ').map(|s| s.to_owned()).collect()
+    }
+}
 
-    #[test]
-    fn test_load_model() {
-        load_model(ScriptLanguage::English, NgramSize::Uni).unwrap();
+#[derive(Error, Debug)]
+pub enum ModelConversionError {
+    #[error("Read error")]
+    Read(#[source] io::Error),
+    #[error("SerdeEncom error")]
+    SerdeEncom(#[from] serde_encom::Error),
+}
+
+fn read(file: File) -> Result<FileModel, ModelConversionError> {
+    let mut uncompressed_file = Decompressor::new(file, 4096);
+    let mut uncompressed_file_content = String::new();
+    uncompressed_file.read_to_string(&mut uncompressed_file_content).map_err(ModelConversionError::Read)?;
+
+    // todo: from_reader once implemented
+    serde_encom::from_str(&uncompressed_file_content).map_err(|e| e.into())
+}
+
+fn parse_model<NU: NgramsUnpacker>(file_model: FileModel, ngram_size: NgramSize) -> ModelNgrams {
+    let iter = file_model.1.into_iter().flat_map(|(fraction, ngrams)| {
+        let floating_point_value = fraction.to_f64().ln();
+        let unp = NU::unpack(ngrams, ngram_size);
+        unp.into_iter()
+            .map(move |chars| (chars, floating_point_value))
+    });
+    iter.collect()
+}
+
+pub fn dir_into_model(lang_dir: PathBuf) -> Result<Option<Model>, ModelConversionError> {
+    if lang_dir.is_dir() {
+        let mut res = Model::default();
+        for ngram_size in NgramSize::iter() {
+            let file_name = ngram_size.into_file_name();
+            if let Ok(file) = File::open(lang_dir.join(file_name)) {
+                let file_model = read(file)?;
+                let ngram_map = if ngram_size == NgramSize::Word {
+                    parse_model::<SpaceNgramsUnpacker>(file_model, ngram_size)
+                } else {
+                    parse_model::<ChunksNgramsUnpacker>(file_model, ngram_size)
+                };
+                *res.ngrams.get_safe_unchecked_mut(ngram_size as usize) = ngram_map;
+            }
+        }
+
+        let uni_model = res.ngrams.get_safe_unchecked(NgramSize::Uni as usize);
+        if uni_model.is_empty() {
+            return Ok(None);
+        }
+        res.ngram_min_probability = Model::compute_min_probability(uni_model.len());
+
+        Ok(Some(res))
+    } else {
+        Ok(None)
     }
 }

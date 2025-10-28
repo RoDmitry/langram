@@ -1,65 +1,49 @@
 use super::{Detector, ModelsStorage, NgramSize};
 use crate::ngram_size::{NgramSizes, NgramSizesTrait};
-use ::core::hash::BuildHasher;
-use ::std::{collections::HashSet, hash::DefaultHasher};
-use alphabet_detector::ScriptLanguage;
-
-pub struct DummyBuildHasher;
-impl BuildHasher for DummyBuildHasher {
-    type Hasher = DefaultHasher;
-    #[inline(never)]
-    fn build_hasher(&self) -> Self::Hasher {
-        unreachable!();
-    }
-}
-
-pub trait RealHasher: Sized + BuildHasher + Default {}
-impl<T: BuildHasher + Default> RealHasher for T {}
+use alphabet_detector::{ScriptLanguage, ScriptLanguageIter};
+use strum::IntoEnumIterator;
 
 #[derive(Clone, Debug)]
-pub struct DetectorBuilder<'m, H: BuildHasher> {
-    pub(super) models_storage: &'m ModelsStorage,
-    pub(super) languages: HashSet<ScriptLanguage, H>,
+pub struct DetectorBuilder<'m, L>
+where
+    L: IntoIterator<Item = ScriptLanguage>,
+{
+    pub(super) models_storage: &'m ModelsStorage<'m>,
+    pub(super) languages: L,
     pub(super) long_text_minlen: usize,
     pub(super) long_text_ngrams: NgramSizes,
     pub(super) short_text_ngrams: NgramSizes,
 }
 
-impl<'m> DetectorBuilder<'m, DummyBuildHasher> {
+impl<'m> DetectorBuilder<'m, ScriptLanguageIter> {
     /// Will have all languages, all ngrams enabled if none selected
     #[inline]
     pub fn new(models_storage: &'m ModelsStorage) -> Self {
         Self {
             models_storage,
-            languages: HashSet::with_hasher(DummyBuildHasher),
+            languages: ScriptLanguage::iter(),
             long_text_minlen: 120,
             long_text_ngrams: NgramSizes::new_const(),
             short_text_ngrams: NgramSizes::new_const(),
         }
     }
-
-    /// Build with all languages
-    #[inline]
-    // pub fn build<H2: RealHasher>(self) -> Detector<'m, H2> {
-    pub fn build(self) -> Detector<'m, ahash::RandomState> {
-        Detector::new(self.languages(ScriptLanguage::all().collect()))
-    }
 }
 
-impl<'m, H: RealHasher> DetectorBuilder<'m, H> {
+impl<'m, L> DetectorBuilder<'m, L>
+where
+    L: IntoIterator<Item = ScriptLanguage>,
+{
     #[inline]
-    pub fn build(self) -> Detector<'m, H> {
+    pub fn build(self) -> Detector<'m> {
         Detector::new(self)
     }
-}
 
-impl<'m, H: BuildHasher> DetectorBuilder<'m, H> {
     /// Change languages
     #[inline]
-    pub fn languages<H2: RealHasher>(
+    pub fn languages<L2: IntoIterator<Item = ScriptLanguage>>(
         self,
-        languages: HashSet<ScriptLanguage, H2>,
-    ) -> DetectorBuilder<'m, H2> {
+        languages: L2,
+    ) -> DetectorBuilder<'m, L2> {
         DetectorBuilder {
             models_storage: self.models_storage,
             languages,
@@ -133,13 +117,11 @@ mod tests {
 
     #[test]
     fn test_build() {
-        let storage = ModelsStorage::default();
+        let storage = ModelsStorage::new().unwrap();
         let detector = DetectorBuilder::new(&storage).build();
         assert_eq!(detector.languages.len(), ScriptLanguage::COUNT);
 
-        let _detector = DetectorBuilder::new(&storage)
-            .languages(AHashSet::new().into())
-            .build();
+        let _detector = DetectorBuilder::new(&storage).languages([]).build();
 
         let _detector = DetectorBuilder::new(&storage)
             .languages(HashSet::new())
@@ -148,7 +130,7 @@ mod tests {
 
     #[test]
     fn test_empty_ngrams() {
-        let storage = ModelsStorage::default();
+        let storage = ModelsStorage::new().unwrap();
         let builder = DetectorBuilder::new(&storage)
             .long_ngrams([].into_iter())
             .short_ngrams([].into_iter());
@@ -162,10 +144,10 @@ mod tests {
 
     #[test]
     fn test_hasher_change() {
-        let storage = ModelsStorage::default();
+        let storage = ModelsStorage::new().unwrap();
         let builder = DetectorBuilder::new(&storage);
         let builder = builder.languages(HashSet::new());
-        let builder = builder.languages(AHashSet::new().into());
+        let builder = builder.languages(AHashSet::new());
         let _detector = builder.build();
     }
 }

@@ -43,13 +43,12 @@ const SENTENCES: &[&str] = &[
 ];
 
 fn benchmark_detector(c: &mut Criterion) {
-    let mut group_all_preloaded = c.benchmark_group("Detector all languages preloaded");
+    let mut group_all = c.benchmark_group("Detector all languages");
 
-    let models_storage = ModelsStorage::default();
+    let models_storage = ModelsStorage::new().unwrap();
     let detector_all_languages_all_ngrams = DetectorBuilder::new(&models_storage).build();
-    detector_all_languages_all_ngrams.preload_models();
 
-    group_all_preloaded.bench_function("all ngrams", |bencher| {
+    group_all.bench_function("all ngrams", |bencher| {
         bencher.iter(|| {
             SENTENCES.iter().for_each(|sentence| {
                 black_box(detector_all_languages_all_ngrams.detect_top_one_raw(sentence));
@@ -59,14 +58,14 @@ fn benchmark_detector(c: &mut Criterion) {
 
     let detector_all_languages_max_trigrams =
         DetectorBuilder::new(&models_storage).max_trigrams().build();
-    group_all_preloaded.bench_function("max trigrams", |bencher| {
+    group_all.bench_function("max trigrams", |bencher| {
         bencher.iter(|| {
             SENTENCES.iter().for_each(|sentence| {
                 black_box(detector_all_languages_max_trigrams.detect_top_one_raw(sentence));
             });
         });
     });
-    group_all_preloaded.finish();
+    group_all.finish();
 
     /* let mut group2 = c.benchmark_group("Detector all languages multiple threads");
     group2.bench_function("all ngrams", |bencher| {
@@ -85,7 +84,7 @@ fn benchmark_detector(c: &mut Criterion) {
     });
     group2.finish(); */
 
-    let mut group_common_preloaded = c.benchmark_group("Detector common languages");
+    let mut group_common = c.benchmark_group("Detector common languages");
 
     let detector_common_languages_all_ngrams = DetectorBuilder::new(&models_storage)
         .languages(
@@ -95,7 +94,7 @@ fn benchmark_detector(c: &mut Criterion) {
                 .collect::<HashSet<_, ahash::RandomState>>(),
         )
         .build();
-    group_common_preloaded.bench_function("all ngrams", |bencher| {
+    group_common.bench_function("all ngrams", |bencher| {
         bencher.iter(|| {
             SENTENCES.iter().for_each(|sentence| {
                 black_box(detector_common_languages_all_ngrams.detect_top_one_raw(sentence));
@@ -112,14 +111,14 @@ fn benchmark_detector(c: &mut Criterion) {
         )
         .max_trigrams()
         .build();
-    group_common_preloaded.bench_function("max trigrams", |bencher| {
+    group_common.bench_function("max trigrams", |bencher| {
         bencher.iter(|| {
             SENTENCES.iter().for_each(|sentence| {
                 black_box(detector_common_languages_max_trigrams.detect_top_one_raw(sentence));
             });
         });
     });
-    group_common_preloaded.finish();
+    group_common.finish();
 
     /* let mut group4 = c.benchmark_group("Detector common languages multiple threads");
     group4.bench_function("all ngrams", |bencher| {
@@ -141,19 +140,17 @@ fn benchmark_detector(c: &mut Criterion) {
     group4.finish(); */
 }
 
-fn benchmark_preload_all_languages(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Detector preload");
+fn benchmark_new_all_languages(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Detector create");
     group.sample_size(10);
 
-    let models_storage = ModelsStorage::default();
-    let detector = DetectorBuilder::new(&models_storage).build();
     group.bench_function("all languages", |bencher| {
         bencher.iter(|| {
-            detector.preload_models();
-            detector.unload_models();
+            let models_storage = ModelsStorage::new().unwrap();
+            black_box(DetectorBuilder::new(&models_storage).build());
         })
     });
 }
 
-criterion_group!(benches, benchmark_detector, benchmark_preload_all_languages,);
+criterion_group!(benches, benchmark_detector, benchmark_new_all_languages,);
 criterion_main!(benches);

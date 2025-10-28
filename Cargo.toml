@@ -12,34 +12,30 @@ readme = "README.md"
 license = "MIT OR Apache-2.0"
 edition = "2021"
 
-[profile.dev]
-opt-level = 1
-
 [lib]
 name = "langram"
 path = "src/lib.rs"
 
 [dependencies]
 ahash = "0.8"
-alphabet_detector = { path = "../alphabet_detector", version = "0.9" }
+alphabet_detector = { path = "../alphabet_detector", version = "0.10" }
 arraystring = "0.3"
 arrayvec = "0.7"
 atoi_simd = "0.16"
-atomic_float = "1"
 brotli = "8"
-compact_str = "0.9"
 debug_unsafe = { version = "0.1.2", features = ["arraystring"] }
 # debug_unsafe = { path = "../debug_unsafe", version = "0.1", features = ["arraystring"] }
 fraction = "0.15"
 itertools = "0.14"
-langram_models = { path = "../langram_models", version = "0.0" }
-parking_lot = "0.12"
+memmap2 = "0.9"
+rkyv = "0.8"
 rustc-hash = "2"
 serde = { version = "1", features = ["derive"] }
 serde_encom = "0.3"
 serde_map = "0.2"
 strum = "0.27"
 strum_macros = "0.27"
+thiserror = "2"
 tracing = "0.1"
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
@@ -48,3 +44,6 @@ rayon = "1"
 [dev-dependencies]
 float-cmp = "0.10"
 rstest = "0.26"
+
+[profile.dev]
+opt-level = 1

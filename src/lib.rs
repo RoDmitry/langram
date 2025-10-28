@@ -11,10 +11,8 @@
 //! ```rust
 //! use langram::{DetectorBuilder, ModelsStorage};
 //!
-//! let models_storage = ModelsStorage::default();
+//! let models_storage = ModelsStorage::new().unwrap();
 //! let detector = DetectorBuilder::new(&models_storage).build();
-//! // preload models for faster detection
-//! detector.preload_models();
 //!
 //! // single thread
 //! let text = "text";
@@ -45,7 +43,7 @@ macro_rules! ahashmap {
             $(
                 let _ = _map.insert($key, $value);
             )*
-            _map.into()
+            _map
         }
     };
 }
@@ -64,20 +62,23 @@ macro_rules! ahashset {
             $(
                 let _ = _set.insert($key);
             )*
-            _set.into()
+            _set
         }
     };
 }
 
 pub use alphabet_detector::{Language, Script, ScriptLanguage, UcdScript};
 
+pub mod bin_storage;
 mod detector;
-mod file_model;
+pub mod file_model;
 mod fraction;
-mod ngram_size;
+mod model;
+pub mod ngram_size;
 mod ngrams;
 
 pub use detector::{Detector, DetectorBuilder, ModelsStorage};
 pub use file_model::FileModel;
 pub use fraction::Fraction;
+pub use model::{ArchivedModel, Model, ModelNgrams};
 pub use ngram_size::NgramSize;

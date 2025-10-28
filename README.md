@@ -11,7 +11,8 @@ Uses [`alphabet_detector`](https://github.com/RoDmitry/alphabet_detector) as a w
 
 Based on chars (1 - 5) and 1 word [n-gram language model](https://en.wikipedia.org/wiki/Word_n-gram_language_model) modified algorithm.
 
-[`ModelsStorage`](https://docs.rs/langram/latest/langram/struct.ModelsStorage.html) with all models preloaded uses around 4.1GB of RAM (2.4GB using max_trigrams). There can be a way (unimplemented) to unload each language model after use, it will work slower but will use around 300MB of RAM. Or maybe can use some DB for models storage on disk, rather than a HashMap in RAM.
+RAM requirements are low, but it may take up to the provided models binary file's size, but this memory is shared (Virtual space, Mmap), so it's not required to have that amount of RAM available.
+But if it won't be able to cache the whole models file in RAM, it's speed will be affected.
 
 This library is a complete rewrite of Lingua: much faster, more accuracy, more languages, etc.
 
@@ -21,17 +22,16 @@ This library is a complete rewrite of Lingua: much faster, more accuracy, more l
 
 ### Setup
 
-To use it, you need to patch `langram_models` in `Cargo.toml`:
+To use this library, you need a binary models file, which must be placed near the executable, or set `LANGRAM_MODELS_PATH`.
 
-* From Git:
+It can be:
+
+* Downloaded from [langram_models releases](https://github.com/RoDmitry/langram_models/releases);
+
+* Built (recommened if big-endian target, also enable `rkyv::big_endian` feature) [langram_models](https://github.com/RoDmitry/langram_models):
 ```
-[patch.crates-io]
-langram_models = { git = "https://github.com/RoDmitry/langram_models.git" }
+git clone https://github.com/RoDmitry/langram_models.git
+cargo run --release
 ```
 
-* From predownloaded copy ([langram_models](https://github.com/RoDmitry/langram_models)):
-```
-[patch.crates-io]
-langram_models = { path = "../langram_models" }
-```
-Which is more advanced and allows you to remove model ngrams, so that final executable would be lighter.
+Which is more advanced and allows you to remove model ngrams, and recompile, so that models binary would be lighter.

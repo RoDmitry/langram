@@ -1,28 +1,51 @@
 use crate::NgramSize;
-use ahash::AHashSet;
 use arraystring::{typenum::U20, ArrayString};
 use debug_unsafe::arraystring::ArrayStringFrom;
+use rustc_hash::FxHashSet;
 
 pub(crate) type NgramString = ArrayString<U20>;
 
-pub(crate) fn prepare_ngrams<'a>(
-    words: impl Iterator<Item = &'a [char]>,
-    ngram_size: NgramSize,
-) -> Vec<NgramString> {
-    let mut ngrams_tmp = AHashSet::new();
-    let mut ngrams = Vec::new();
+pub(crate) struct NgramIterator<'w, I>
+where
+    I: Iterator<Item = &'w [char]>,
+{
+    ngrams: I,
+    seen: FxHashSet<&'w [char]>,
+}
 
-    for word in words {
-        for ngram in word.windows(ngram_size as usize + 1) {
-            if ngrams_tmp.insert(ngram) {
-                ngrams.push(NgramString::from_chars_safe_unchecked(
+pub(crate) fn ngram_iterator<'w>(
+    words_iter: impl Iterator<Item = &'w [char]>,
+    ngram_sizes: &'w [NgramSize],
+) -> NgramIterator<'w, impl Iterator<Item = &'w [char]>> {
+    let ngrams = words_iter.flat_map(|w| {
+        ngram_sizes
+            .iter()
+            .copied()
+            .flat_map(|ns| w.windows(ns as usize + 1))
+    });
+
+    NgramIterator {
+        ngrams,
+        seen: Default::default(),
+    }
+}
+
+impl<'w, I> Iterator for NgramIterator<'w, I>
+where
+    I: Iterator<Item = &'w [char]>,
+{
+    type Item = NgramString;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let ngram = self.ngrams.next()?;
+            if self.seen.insert(ngram) {
+                return Some(NgramString::from_chars_safe_unchecked(
                     ngram.iter().copied(),
                 ));
             }
         }
     }
-
-    ngrams
 }
 
 #[cfg(test)]
