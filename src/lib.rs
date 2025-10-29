@@ -80,5 +80,4 @@ mod ngrams;
 pub use detector::{Detector, DetectorBuilder, ModelsStorage};
 pub use file_model::FileModel;
 pub use fraction::Fraction;
-pub use model::{ArchivedModel, Model, ModelNgrams};
 pub use ngram_size::NgramSize;

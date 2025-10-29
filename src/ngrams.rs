@@ -15,14 +15,9 @@ where
 
 pub(crate) fn ngram_iterator<'w>(
     words_iter: impl Iterator<Item = &'w [char]>,
-    ngram_sizes: &'w [NgramSize],
+    ngram_size: NgramSize,
 ) -> NgramIterator<'w, impl Iterator<Item = &'w [char]>> {
-    let ngrams = words_iter.flat_map(|w| {
-        ngram_sizes
-            .iter()
-            .copied()
-            .flat_map(|ns| w.windows(ns as usize + 1))
-    });
+    let ngrams = words_iter.flat_map(move |w| w.windows(ngram_size as usize + 1));
 
     NgramIterator {
         ngrams,

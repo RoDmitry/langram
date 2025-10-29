@@ -1,5 +1,5 @@
 use super::{builder::DetectorBuilder, *};
-use crate::{Model, NgramSize, ScriptLanguage::*};
+use crate::{model::Model, NgramSize, ScriptLanguage::*};
 use ::std::sync::LazyLock;
 use ahash::AHashMap;
 use float_cmp::approx_eq;
@@ -107,8 +107,9 @@ static MOCK_MODELS_ENGLISH_AND_GERMAN: LazyLock<ModelsStorage> = LazyLock::new(|
     case(German, "alter", 0.3)
 )]
 fn test_mock_model_ngram_lookup(language: ScriptLanguage, ngram: &str, expected_probability: f64) {
-    let probability = MOCK_MODELS_ENGLISH_AND_GERMAN
-        .ngrams
+    let ngram_length = ngram.chars().count();
+
+    let probability = MOCK_MODELS_ENGLISH_AND_GERMAN.ngrams[ngram_length - 1]
         .get(ngram)
         .and_then(|v| {
             v.iter().find_map(|ArchivedTuple2(l, p)| {
@@ -168,6 +169,7 @@ fn test_mock_probabilities_languages_ngrams(
     let mut probabilities = slang_arr_default::<(f64, usize)>();
     Detector::probabilities_languages_ngrams(
         &MOCK_MODELS_ENGLISH_AND_GERMAN,
+        NgramSize::from(ngrams[0].chars().count() - 1),
         ngrams.iter().copied(),
         &languages,
         &mut probabilities,

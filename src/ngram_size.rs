@@ -2,7 +2,6 @@ use arrayvec::ArrayVec;
 use strum::EnumCount;
 use strum_macros::{EnumCount, EnumIter};
 
-#[cfg(test)]
 pub(crate) const NGRAM_MAX_LEN: usize = 5;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, EnumCount, EnumIter)]

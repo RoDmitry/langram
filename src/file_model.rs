@@ -111,7 +111,9 @@ pub enum ModelConversionError {
 fn read(file: File) -> Result<FileModel, ModelConversionError> {
     let mut uncompressed_file = Decompressor::new(file, 4096);
     let mut uncompressed_file_content = String::new();
-    uncompressed_file.read_to_string(&mut uncompressed_file_content).map_err(ModelConversionError::Read)?;
+    uncompressed_file
+        .read_to_string(&mut uncompressed_file_content)
+        .map_err(ModelConversionError::Read)?;
 
     // todo: from_reader once implemented
     serde_encom::from_str(&uncompressed_file_content).map_err(|e| e.into())

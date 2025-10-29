@@ -1,18 +1,21 @@
-use crate::{Model, NgramSize};
+use crate::{model::Model, ngram_size::NGRAM_MAX_LEN, NgramSize};
 use ::std::{collections::HashMap, fmt};
 use alphabet_detector::{ScriptLanguage, ScriptLanguageArr};
 use debug_unsafe::slice::SliceGetter;
 use rkyv::util::AlignedVec;
 
-pub type StorageNgrams = HashMap<String, Vec<(u16, f64)>, rustc_hash::FxBuildHasher>;
+pub(crate) type StorageNgrams = HashMap<String, Vec<(u16, f64)>, rustc_hash::FxBuildHasher>;
+// Vec because array requires 64-bit pointers, failed with
+// "out of range integral type conversion attempted"
+pub(crate) type StorageNgramsArr = Vec<StorageNgrams>;
 
 #[derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)]
 pub struct BinStorage {
-    pub langs_ngram_min_probability: ScriptLanguageArr<f64>,
-    pub ngrams: StorageNgrams,
-    pub wordgrams: StorageNgrams,
-    pub wordgram_min_probability: f64,
-    pub hash: u64,
+    pub(crate) langs_ngram_min_probability: ScriptLanguageArr<f64>,
+    pub(crate) ngrams: StorageNgramsArr,
+    pub(crate) wordgrams: StorageNgrams,
+    pub(crate) wordgram_min_probability: f64,
+    pub(crate) hash: u64,
 }
 
 impl Default for BinStorage {
@@ -20,7 +23,8 @@ impl Default for BinStorage {
     fn default() -> Self {
         Self {
             langs_ngram_min_probability: ::core::array::from_fn(|_| f64::NEG_INFINITY),
-            ngrams: Default::default(),
+            ngrams: vec![Default::default(); NGRAM_MAX_LEN],
+            // can't be included in ngrams, requires 64-bit pointers
             wordgrams: Default::default(),
             wordgram_min_probability: Default::default(),
             hash: ScriptLanguage::HASH,
@@ -73,8 +77,9 @@ impl BinStorage {
                 continue;
             }
 
+            let ngram_model = self.ngrams.get_safe_unchecked_mut(ngram_size as usize);
             for (word, prob) in model_ngrams {
-                let entry = self.ngrams.entry(word).or_default();
+                let entry = ngram_model.entry(word).or_default();
                 entry.push((lang as u16, prob));
             }
         }
@@ -85,8 +90,10 @@ impl BinStorage {
     }
 
     pub fn reorder(&mut self) {
-        [&mut self.ngrams, &mut self.wordgrams]
-            .into_iter()
+        self.ngrams
+            .iter_mut()
+            .chain([&mut self.wordgrams])
+            .inspect(|v| println!("len {:?}", v.len()))
             .flat_map(|v| v.iter_mut())
             .for_each(|(_, v)| {
                 v.sort_by(|(l1, _), (l2, _)| {

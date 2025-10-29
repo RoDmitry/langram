@@ -1,6 +1,6 @@
-use crate::bin_storage::{ArchivedBinStorage, BinStorage, StorageNgrams};
+use crate::bin_storage::{ArchivedBinStorage, BinStorage, StorageNgrams, StorageNgramsArr};
 #[cfg(test)]
-use crate::Model;
+use crate::model::Model;
 use ::std::{fmt, io};
 use alphabet_detector::{ScriptLanguage, ScriptLanguageArr};
 use memmap2::Mmap;
@@ -9,13 +9,14 @@ use std::{env, fs::File, path::Path};
 use thiserror::Error;
 
 pub(super) type NgramModel = <StorageNgrams as Archive>::Archived;
+type NgramModelArr = <StorageNgramsArr as Archive>::Archived;
 
-pub struct ModelsStorage<'f> {
+pub struct ModelsStorage<'m> {
     #[allow(unused)]
     mmap: Mmap,
-    pub(super) langs_ngram_min_probability: &'f <ScriptLanguageArr<f64> as Archive>::Archived,
-    pub(super) ngrams: &'f NgramModel,
-    pub(super) wordgrams: &'f NgramModel,
+    pub(super) langs_ngram_min_probability: &'m <ScriptLanguageArr<f64> as Archive>::Archived,
+    pub(super) ngrams: &'m NgramModelArr,
+    pub(super) wordgrams: &'m NgramModel,
     pub(super) wordgram_min_probability: f64,
 }
 
@@ -27,7 +28,7 @@ impl fmt::Debug for ModelsStorage<'_> {
     }
 }
 
-impl<'f> ModelsStorage<'f> {
+impl<'m> ModelsStorage<'m> {
     #[inline]
     fn get_file() -> Result<File, ModelsStorageError> {
         if let Ok(path) = env::var("LANGRAM_MODELS_PATH") {
@@ -59,10 +60,9 @@ impl<'f> ModelsStorage<'f> {
 
     #[inline]
     fn from_mmap(mmap: Mmap) -> Result<Self, ModelsStorageError> {
-        let fs: &'f ArchivedBinStorage =
-            rkyv::access::<ArchivedBinStorage, rkyv::rancor::Error>(unsafe {
-                ::core::mem::transmute::<&[u8], &'f [u8]>(mmap.as_ref())
-            })?;
+        // SAFETY: slice has the same lifetime as mmap
+        let slice: &'m [u8] = unsafe { ::core::mem::transmute::<&[u8], &'m [u8]>(mmap.as_ref()) };
+        let fs = rkyv::access::<ArchivedBinStorage, rkyv::rancor::Error>(slice)?;
 
         if fs.hash != ScriptLanguage::HASH {
             return Err(ModelsStorageError::ModelsHash(fs.hash.to_native()));

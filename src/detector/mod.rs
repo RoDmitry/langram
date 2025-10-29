@@ -135,12 +135,15 @@ impl<'m> Detector<'m> {
 
     fn probabilities_languages_ngrams(
         models_storage: &'m ModelsStorage,
+        ngram_size: NgramSize,
         ngrams_iter: impl Iterator<Item = impl Borrow<str>>,
         languages: &FxHashSet<ScriptLanguage>,
         output: &mut ScriptLanguageArr<(f64, usize)>,
     ) {
         Self::ngrams_sum_cnt(
-            models_storage.ngrams,
+            models_storage
+                .ngrams
+                .get_safe_unchecked(ngram_size as usize),
             ngrams_iter,
             languages,
             output,
@@ -176,12 +179,18 @@ impl<'m> Detector<'m> {
         models_storage: &'m ModelsStorage,
         words_iter: impl Iterator<Item = &'a [char]>,
         languages: &FxHashSet<ScriptLanguage>,
-        ngram_sizes: &'a [NgramSize],
+        ngram_size: NgramSize,
         output: &mut ScriptLanguageArr<(f64, usize)>,
     ) {
-        let ngrams_iter = ngram_iterator::<'a>(words_iter, ngram_sizes);
+        let ngrams_iter = ngram_iterator::<'a>(words_iter, ngram_size);
 
-        Self::probabilities_languages_ngrams(models_storage, ngrams_iter, languages, output);
+        Self::probabilities_languages_ngrams(
+            models_storage,
+            ngram_size,
+            ngrams_iter,
+            languages,
+            output,
+        );
 
         /* let mut dbg: Vec<_> = output
             .iter()
@@ -273,13 +282,15 @@ impl<'m> Detector<'m> {
 
         let mut probabilities = slang_arr_default::<(f64, usize)>();
 
-        Self::probabilities_ngrams(
-            self.models_storage,
-            words.iter().map(|wd| wd.buf.as_ref()),
-            &filtered_languages,
-            ngram_sizes,
-            &mut probabilities,
-        );
+        for &ngram_size in ngram_sizes {
+            Self::probabilities_ngrams(
+                self.models_storage,
+                words.iter().map(|wd| wd.buf.as_ref()),
+                &filtered_languages,
+                ngram_size,
+                &mut probabilities,
+            );
+        }
 
         if wordgrams_enabled {
             Self::probabilities_languages_wordgrams(
