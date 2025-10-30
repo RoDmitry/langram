@@ -31,7 +31,7 @@ memmap2 = "0.9"
 rkyv = "0.8"
 rustc-hash = "2"
 serde = { version = "1", features = ["derive"] }
-serde_encom = "0.3"
+serde_encom = "0.4"
 serde_map = "0.2"
 strum = "0.27"
 strum_macros = "0.27"

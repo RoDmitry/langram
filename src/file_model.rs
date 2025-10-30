@@ -14,41 +14,30 @@ use itertools::Itertools;
 use serde_map::SerdeMap;
 use strum::IntoEnumIterator;
 use thiserror::Error;
+/* use std::{
+    iter::Map,
+    str::{Chars, Split},
+}; */
 
 pub type FileModel = (usize, SerdeMap<Fraction, String>);
 
-/* fn unwrap_model(model: io::Result<FileModel>, file_path: PathBuf) -> Option<FileModel> {
-    match model {
-        Ok(m) => Some(m),
-        Err(e) => {
-            if e.kind() != ErrorKind::NotFound {
-                if cfg!(debug_assertions) {
-                    panic!("Invalid model {file_path:?}: {e}: {e:?}");
-                } else {
-                    tracing::error!("Invalid model {file_path:?}: {e}: {e:?}");
-                }
-            }
-            None
-        }
-    }
-} */
-
 /* pub(crate) trait IntoIteratorBorrowed<'i>: Sized + Clone {
-    fn to_iter(&self) -> impl Iterator<Item = impl Iterator<Item = char>>;
+    fn to_iter(&self) -> impl Iterator<Item = String>;
 }
 
 impl<'i> IntoIteratorBorrowed<'i> for IntoChunks<Chars<'i>> {
     #[inline(always)]
-    fn to_iter(&self) -> impl Iterator<Item = impl Iterator<Item = char>> {
-        self.into_iter()
+    fn to_iter(&self) -> impl Iterator<Item = String> {
+        self.into_iter().map(|c| c.collect::<String>())
     }
 }
 
-impl<'i, T: FnMut(&'i str) -> Chars<'i> + Clone> IntoIteratorBorrowed<'i>
-    for Map<Split<'i, char>, T>
+impl<'i, T> IntoIteratorBorrowed<'i> for Map<Split<'i, char>, T>
+where
+    T: FnMut(&'i str) -> String + Clone,
 {
     #[inline(always)]
-    fn to_iter(&self) -> impl Iterator<Item = impl Iterator<Item = char>> {
+    fn to_iter(&self) -> impl Iterator<Item = String> {
         // todo: optimize somehow?
         self.to_owned()
     }
@@ -71,16 +60,16 @@ impl NgramsUnpacker for ChunksNgramsUnpacker {
 impl NgramsUnpacker for SpaceNgramsUnpacker {
     #[inline(always)]
     fn unpack<'a>(ngrams: &'a str, _ngram_size: NgramSize) -> impl IntoIteratorBorrowed<'a> {
-        ngrams.split(' ').map(|s| s.chars())
+        ngrams.split(' ').map(|s| s.to_owned())
     }
 } */
 
 pub(crate) trait NgramsUnpacker: Sized {
+    // unnecessary Vec
     fn unpack(ngrams: String, ngram_size: NgramSize) -> Vec<String>;
 }
 
 impl NgramsUnpacker for ChunksNgramsUnpacker {
-    // very unoptimal, reallocation
     #[inline(always)]
     fn unpack(ngrams: String, ngram_size: NgramSize) -> Vec<String> {
         ngrams
@@ -93,7 +82,6 @@ impl NgramsUnpacker for ChunksNgramsUnpacker {
 }
 
 impl NgramsUnpacker for SpaceNgramsUnpacker {
-    // very unoptimal, reallocation
     #[inline(always)]
     fn unpack(ngrams: String, _ngram_size: NgramSize) -> Vec<String> {
         ngrams.split(' ').map(|s| s.to_owned()).collect()

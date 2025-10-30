@@ -8,17 +8,6 @@ use strum::EnumCount;
 pub type ModelNgrams = HashMap<String, f64, rustc_hash::FxBuildHasher>;
 type ModelNgramsArr = [ModelNgrams; NgramSize::COUNT];
 
-/* pub(crate) trait NgramFromChars: Sized {
-    fn from_chars(chars: impl IntoIterator<Item = char>) -> Self;
-}
-
-impl NgramFromChars for String {
-    #[inline(always)]
-    fn from_chars(chars: impl IntoIterator<Item = char>) -> Self {
-        chars.into_iter().collect()
-    }
-} */
-
 #[derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)]
 pub struct Model {
     pub ngrams: ModelNgramsArr,

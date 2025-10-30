@@ -197,7 +197,6 @@ fn test_mock_probabilities_languages_ngrams(
     expected_probabilities,
     case::language_detected_by_rules("groß", vec![(German, 1.0)]),
     case::known_ngrams("Alter", vec![(German, 0.61), (English, 0.39)]),
-    // can return different result if `wordgram_min_probability` was changed in another detector (because it's static)
     case::english_only_ngrams("k", vec![(English, 1.0)]),
     case::unique_ngrams("o", vec![(English, 0.5), (German, 0.5)]),
     case::unknown_ngrams("проарплап", vec![]),

@@ -12,6 +12,7 @@ use alphabet_detector::{
 };
 use cap::Cap;
 use clap::Parser;
+use langram::NgramSize;
 // #[cfg(not(target_env = "msvc"))]
 // use jemallocator::Jemalloc;
 
@@ -89,7 +90,7 @@ fn process(path: DirEntry, langs_seen: Arc<Mutex<ScriptLanguageArr<bool>>>, out_
         } */
 
         let out_mod_path = out_path.join(lang.into_str());
-        if out_mod_path.join("unigrams.encom.br").exists() {
+        if out_mod_path.join(NgramSize::Uni.into_file_name()).exists() {
             println!("*{file_name}* EXISTS {lang:?}");
             return;
         }
