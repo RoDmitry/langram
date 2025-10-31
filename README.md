@@ -28,10 +28,6 @@ It can be:
 
 * Downloaded from [langram_models releases](https://github.com/RoDmitry/langram_models/releases);
 
-* Built (recommened if big-endian target, also enable `rkyv::big_endian` feature) [langram_models](https://github.com/RoDmitry/langram_models):
-```
-git clone https://github.com/RoDmitry/langram_models.git
-cargo run --release
-```
+* Built (recommened if big-endian target) [langram_models](https://github.com/RoDmitry/langram_models).
 
 Which is more advanced and allows you to remove model ngrams, and recompile, so that models binary would be lighter.

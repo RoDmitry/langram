@@ -40,6 +40,7 @@ impl fmt::Debug for BinStorage {
                 &self.langs_ngram_min_probability,
             )
             .field("wordgram_min_probability", &self.wordgram_min_probability)
+            .field("hash", &self.hash)
             .finish_non_exhaustive()
     }
 }
