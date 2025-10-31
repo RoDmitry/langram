@@ -77,7 +77,7 @@ mod model;
 pub mod ngram_size;
 mod ngrams;
 
-pub use detector::{Detector, DetectorBuilder, ModelsStorage};
+pub use detector::{Detector, DetectorBuilder, ModelsStorage, ModelsStorageError};
 pub use file_model::FileModel;
 pub use fraction::Fraction;
 pub use ngram_size::NgramSize;

@@ -19,7 +19,7 @@ mod storage;
 pub use builder::DetectorBuilder;
 use rkyv::tuple::ArchivedTuple2;
 use rustc_hash::FxHashSet;
-pub use storage::ModelsStorage;
+pub use storage::{ModelsStorage, ModelsStorageError};
 
 trait ProbabilitiesAdder: Sized {
     fn add(&mut self, add: (f64, usize));
