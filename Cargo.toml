@@ -1,6 +1,6 @@
 [package]
 name = "langram"
-version = "0.7.0"
+version = "0.9.0"
 authors = ["Dmitry Rodionov <gh@rdmtr.com>"]
 description = "Natural language detection library"
 documentation = "https://docs.rs/langram/"
