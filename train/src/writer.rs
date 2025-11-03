@@ -1,4 +1,4 @@
-use crate::model::TrainingModel;
+use crate::{file_model::FileModel, training_model::TrainingModel};
 use ::std::{
     fs::{create_dir_all, File},
     io,
@@ -9,7 +9,7 @@ use ahash::AHashMap;
 use alphabet_detector::{filter_max, ScriptLanguage, UcdScript};
 use brotli::CompressorWriter;
 use itertools::Itertools;
-use langram::{FileModel, NgramSize};
+use langram::NgramSize;
 
 pub trait FileModelWriter {
     fn write_compressed(&self, file_path: &Path) -> io::Result<()>;

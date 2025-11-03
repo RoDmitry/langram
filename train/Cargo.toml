@@ -19,12 +19,18 @@ default = ["alphabet_detector/files_read"]
 [dependencies]
 ahash = "0.8"
 alphabet_detector = { path = "../../alphabet_detector", version = "0.10" }
+atoi_simd = "0.17"
 brotli = "8"
 cap = "0.1"
 clap = { version = "4", features = ["derive"] }
+debug_unsafe = { version = "0.1.2", features = ["arraystring"] }
 fraction = "0.15"
 itertools = "0.14"
 langram = { path = "..", version = "0.9" }
 libc = "0.2"
+serde = { version = "1", features = ["derive"] }
 serde_encom = "0.4"
+serde_map = "0.2"
+strum = "0.27"
+thiserror = "2"
 threadpool = "1"

@@ -9,7 +9,6 @@ use alphabet_detector::{
     fulltext_filter_with_margin, slang_arr_default, ScriptLanguage, ScriptLanguageArr, Word,
 };
 use debug_unsafe::{option::OptionUnwrapper, slice::SliceGetter};
-use fraction::Zero;
 
 mod builder;
 #[cfg(all(debug_assertions, test))]
@@ -469,15 +468,15 @@ fn transform_to_relative_probabilities(probabilities: &mut Vec<(ScriptLanguage, 
     debug_assert!(!probabilities.iter().any(|(_, p)| p.is_nan()));
 
     let first_probability = probabilities.first().unwrap_safe_unchecked().1;
-    if first_probability.is_zero() {
+    if first_probability == 0.0 {
         let zeroes = probabilities
             .iter()
-            .position(|(_, p)| !p.is_zero())
+            .position(|(_, p)| *p != 0.0)
             .unwrap_or(probabilities.len());
         probabilities.truncate(zeroes);
     }
 
-    if first_probability.is_zero() || first_probability == f64::NEG_INFINITY {
+    if first_probability == 0.0 || first_probability == f64::NEG_INFINITY {
         let len = probabilities.len() as f64;
         probabilities.iter_mut().for_each(|(_, p)| *p = 1.0 / len);
 
@@ -490,7 +489,7 @@ fn transform_to_relative_probabilities(probabilities: &mut Vec<(ScriptLanguage, 
         denominator += *p;
     });
 
-    if denominator.is_zero() {
+    if denominator == 0.0 {
         // ::core::hint::cold_path();
         if let Some((_, p)) = probabilities.first_mut() {
             *p = 1.0

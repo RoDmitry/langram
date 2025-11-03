@@ -1,8 +1,4 @@
-use crate::{
-    fraction::Fraction,
-    model::{Model, ModelNgrams},
-    NgramSize,
-};
+use crate::fraction::Fraction;
 use ::std::{
     fs::File,
     io::{self, Read},
@@ -11,6 +7,10 @@ use ::std::{
 use brotli::Decompressor;
 use debug_unsafe::slice::SliceGetter;
 use itertools::Itertools;
+use langram::{
+    model::{Model, ModelNgrams},
+    NgramSize,
+};
 use serde_map::SerdeMap;
 use strum::IntoEnumIterator;
 use thiserror::Error;

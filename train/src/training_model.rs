@@ -1,6 +1,6 @@
+use crate::{file_model::FileModel, fraction::Fraction};
 use ahash::AHashMap;
 use fraction::GenericFraction;
-use langram::{FileModel, Fraction};
 
 #[derive(Debug)]
 pub(crate) struct TrainingModel<'t> {

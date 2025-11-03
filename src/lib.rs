@@ -71,13 +71,9 @@ pub use alphabet_detector::{Language, Script, ScriptLanguage, UcdScript};
 
 pub mod bin_storage;
 mod detector;
-pub mod file_model;
-mod fraction;
-mod model;
+pub mod model;
 pub mod ngram_size;
 mod ngrams;
 
 pub use detector::{Detector, DetectorBuilder, ModelsStorage, ModelsStorageError};
-pub use file_model::FileModel;
-pub use fraction::Fraction;
 pub use ngram_size::NgramSize;
