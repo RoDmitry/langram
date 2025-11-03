@@ -16,9 +16,9 @@ But if it won't be able to cache the whole models file in RAM, it's speed will b
 
 This library is a complete rewrite of Lingua: much faster, more accuracy, more languages, etc.
 
-[Accuracy report](https://github.com/RoDmitry/lang_detectors_compare/blob/main/accuracy/langram.csv)
+Also more accurate than Whatlang or Whichlang. More info at the [Comparison with other language detectors](https://github.com/RoDmitry/lang_detectors_compare).
 
-[Comparison with other language detectors](https://github.com/RoDmitry/lang_detectors_compare)
+To better understand the accuracy of different modes, look into the [Accuracy report](https://github.com/RoDmitry/lang_detectors_compare/blob/main/accuracy/langram.csv).
 
 ### Setup
 
