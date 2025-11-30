@@ -66,7 +66,7 @@ pub fn create_model_and_write_files(
     let unigram_model = TrainingModel::new_windows(&word_chars, 1);
     unigram_model
         .to_file_model(AHashMap::new(), &[])
-        .write_compressed(&out_mod_path.join(NgramSize::Uni.into_file_name()))?;
+        .write_compressed(&out_mod_path.join(crate::into_file_name(NgramSize::Uni)))?;
     let TrainingModel {
         absolute_frequencies,
     } = unigram_model;
@@ -88,7 +88,7 @@ pub fn create_model_and_write_files(
     let bigram_model = TrainingModel::new_windows(&word_chars, 2);
     bigram_model
         .to_file_model(absolute_frequencies, &[])
-        .write_compressed(&out_mod_path.join(NgramSize::Bi.into_file_name()))?;
+        .write_compressed(&out_mod_path.join(crate::into_file_name(NgramSize::Bi)))?;
 
     if is_han {
         return Ok(());
@@ -104,7 +104,7 @@ pub fn create_model_and_write_files(
     let trigram_model = TrainingModel::new_windows(&word_chars, 3);
     trigram_model
         .to_file_model(absolute_frequencies, &[])
-        .write_compressed(&out_mod_path.join(NgramSize::Tri.into_file_name()))?;
+        .write_compressed(&out_mod_path.join(crate::into_file_name(NgramSize::Tri)))?;
     let TrainingModel {
         absolute_frequencies,
     } = trigram_model;
@@ -116,7 +116,7 @@ pub fn create_model_and_write_files(
     let quadrigram_model = TrainingModel::new_windows(&word_chars, 4);
     quadrigram_model
         .to_file_model(absolute_frequencies, &[])
-        .write_compressed(&out_mod_path.join(NgramSize::Quadri.into_file_name()))?;
+        .write_compressed(&out_mod_path.join(crate::into_file_name(NgramSize::Quadri)))?;
     let TrainingModel {
         absolute_frequencies,
     } = quadrigram_model;
@@ -128,7 +128,7 @@ pub fn create_model_and_write_files(
     let fivegram_model = TrainingModel::new_windows(&word_chars, 5);
     fivegram_model
         .to_file_model(absolute_frequencies, &[])
-        .write_compressed(&out_mod_path.join(NgramSize::Five.into_file_name()))?;
+        .write_compressed(&out_mod_path.join(crate::into_file_name(NgramSize::Five)))?;
     drop(fivegram_model);
 
     println!(
@@ -138,5 +138,5 @@ pub fn create_model_and_write_files(
     let wordgram_model = TrainingModel::new(&word_chars);
     wordgram_model
         .to_file_model(AHashMap::new(), &[' '])
-        .write_compressed(&out_mod_path.join(NgramSize::Word.into_file_name()))
+        .write_compressed(&out_mod_path.join(crate::into_file_name(NgramSize::Word)))
 }

@@ -37,8 +37,8 @@ pub struct Detector<'m> {
     models_storage: &'m ModelsStorage<'m>,
     pub languages: FxHashSet<ScriptLanguage>,
     pub long_text_minlen: usize,
-    long_text_ngrams: NgramSizes,
-    short_text_ngrams: NgramSizes,
+    long_text_ngram_sizes: NgramSizes,
+    short_text_ngram_sizes: NgramSizes,
 }
 
 impl<'m> Detector<'m> {
@@ -48,8 +48,8 @@ impl<'m> Detector<'m> {
     where
         L: IntoIterator<Item = ScriptLanguage>,
     {
-        let long_text_ngrams = if !builder.long_text_ngrams.is_empty() {
-            builder.long_text_ngrams
+        let long_text_ngram_sizes = if !builder.long_text_ngram_sizes.is_empty() {
+            builder.long_text_ngram_sizes
         } else {
             NgramSizes::new_merged(
                 [
@@ -62,8 +62,8 @@ impl<'m> Detector<'m> {
             )
         };
 
-        let short_text_ngrams = if !builder.short_text_ngrams.is_empty() {
-            builder.short_text_ngrams
+        let short_text_ngram_sizes = if !builder.short_text_ngram_sizes.is_empty() {
+            builder.short_text_ngram_sizes
         } else {
             NgramSizes::new_merged(
                 [
@@ -82,8 +82,8 @@ impl<'m> Detector<'m> {
             models_storage: builder.models_storage,
             languages: builder.languages.into_iter().collect(),
             long_text_minlen: builder.long_text_minlen,
-            long_text_ngrams,
-            short_text_ngrams,
+            long_text_ngram_sizes,
+            short_text_ngram_sizes,
         }
     }
 
@@ -94,8 +94,8 @@ impl<'m> Detector<'m> {
             models_storage: self.models_storage,
             languages,
             long_text_minlen: self.long_text_minlen,
-            long_text_ngrams: self.long_text_ngrams.clone(),
-            short_text_ngrams: self.short_text_ngrams.clone(),
+            long_text_ngram_sizes: self.long_text_ngram_sizes.clone(),
+            short_text_ngram_sizes: self.short_text_ngram_sizes.clone(),
         }
     }
 
@@ -113,10 +113,10 @@ impl<'m> Detector<'m> {
                 continue;
             };
 
-            let mut languages = languages.clone();
+            let mut languages_tmp = languages.clone();
             for ArchivedTuple2(language, prob) in langs_probs.iter() {
                 let language = ScriptLanguage::transmute_from_usize(language.to_native() as usize);
-                if !languages.remove(&language) {
+                if !languages_tmp.remove(&language) {
                     continue;
                 }
                 let prob = prob.to_native();
@@ -126,7 +126,7 @@ impl<'m> Detector<'m> {
                     .add((prob, 1));
             }
 
-            languages.into_iter().for_each(|language| {
+            languages_tmp.into_iter().for_each(|language| {
                 output.get_safe_unchecked_mut(language as usize).0 += min_prob_getter(language);
             });
         }
@@ -261,9 +261,9 @@ impl<'m> Detector<'m> {
         let characters_count: usize = words.iter().map(|wd| wd.buf.len()).sum();
 
         let mut ngram_sizes: &[NgramSize] = if characters_count < self.long_text_minlen {
-            &self.short_text_ngrams
+            &self.short_text_ngram_sizes
         } else {
-            &self.long_text_ngrams
+            &self.long_text_ngram_sizes
         };
         debug_assert!(!ngram_sizes.is_empty());
 

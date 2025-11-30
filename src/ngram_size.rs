@@ -15,20 +15,6 @@ pub enum NgramSize {
     Word = 5,
 }
 
-impl NgramSize {
-    #[inline]
-    pub const fn into_file_name(self) -> &'static str {
-        match self {
-            Self::Uni => "unigrams.encom.br",
-            Self::Bi => "bigrams.encom.br",
-            Self::Tri => "trigrams.encom.br",
-            Self::Quadri => "quadrigrams.encom.br",
-            Self::Five => "fivegrams.encom.br",
-            Self::Word => "wordgrams.encom.br",
-        }
-    }
-}
-
 impl From<usize> for NgramSize {
     #[inline(always)]
     fn from(v: usize) -> Self {
@@ -58,6 +44,7 @@ impl NgramSizesTrait for NgramSizes {
         }
         self.sort_unstable();
     }
+
     #[inline]
     fn new_merged(ngram_sizes: impl Iterator<Item = NgramSize>) -> Self {
         let mut new = Self::new_const();

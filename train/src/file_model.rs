@@ -121,7 +121,7 @@ pub fn dir_into_model(lang_dir: PathBuf) -> Result<Option<Model>, ModelConversio
     if lang_dir.is_dir() {
         let mut res = Model::default();
         for ngram_size in NgramSize::iter() {
-            let file_name = ngram_size.into_file_name();
+            let file_name = crate::into_file_name(ngram_size);
             if let Ok(file) = File::open(lang_dir.join(file_name)) {
                 let file_model = read(file)?;
                 let ngram_map = if ngram_size == NgramSize::Word {
