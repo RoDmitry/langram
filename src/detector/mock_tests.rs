@@ -7,13 +7,12 @@ use rstest::*;
 use strum::EnumCount;
 
 fn create_mock_model(ngrams_model: [AHashMap<&'static str, f64>; NgramSize::COUNT]) -> Model {
-    let ngrams = ngrams_model.map(|model| {
-        model
+    ngrams_model.map(|ngrams| {
+        ngrams
             .into_iter()
             .map(|(k, v)| (k.to_owned(), v.ln()))
             .collect()
-    });
-    Model::new_mock(ngrams)
+    })
 }
 
 fn round_to_two_decimal_places(value: f64) -> f64 {
@@ -88,6 +87,8 @@ fn model_for_german() -> Model {
 static MOCK_MODELS_ENGLISH_AND_GERMAN: LazyLock<ModelsStorage> = LazyLock::new(|| {
     let models_storage =
         ModelsStorage::from_models([(English, model_for_english()), (German, model_for_german())]);
+    assert!(models_storage.wordgram_min_probability < 0.0);
+    assert!(models_storage.wordgram_min_probability > f64::NEG_INFINITY);
     models_storage
 });
 

@@ -84,7 +84,7 @@ impl<'m> ModelsStorage<'m> {
         for (l, m) in input {
             file_storage.add(l.into_str().to_owned(), m);
         }
-        file_storage.reorder();
+        file_storage.finalize();
 
         let bytes = file_storage.to_bytes().unwrap();
         let mmap = mmap_from_bytes(&bytes).unwrap();

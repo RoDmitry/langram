@@ -119,7 +119,7 @@ fn parse_model<NU: NgramsUnpacker>(file_model: FileModel, ngram_size: NgramSize)
 
 pub fn dir_into_model(lang_dir: PathBuf) -> Result<Option<Model>, ModelConversionError> {
     if lang_dir.is_dir() {
-        let mut res = Model::default();
+        let mut model = Model::default();
         for ngram_size in NgramSize::iter() {
             let file_name = crate::into_file_name(ngram_size);
             if let Ok(file) = File::open(lang_dir.join(file_name)) {
@@ -129,17 +129,16 @@ pub fn dir_into_model(lang_dir: PathBuf) -> Result<Option<Model>, ModelConversio
                 } else {
                     parse_model::<ChunksNgramsUnpacker>(file_model, ngram_size)
                 };
-                *res.ngrams.get_safe_unchecked_mut(ngram_size as usize) = ngram_map;
+                *model.get_safe_unchecked_mut(ngram_size as usize) = ngram_map;
             }
         }
 
-        let uni_model = res.ngrams.get_safe_unchecked(NgramSize::Uni as usize);
+        let uni_model = model.get_safe_unchecked(NgramSize::Uni as usize);
         if uni_model.is_empty() {
             return Ok(None);
         }
-        res.ngram_min_probability = Model::compute_min_probability(uni_model.len());
 
-        Ok(Some(res))
+        Ok(Some(model))
     } else {
         Ok(None)
     }

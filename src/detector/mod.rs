@@ -126,6 +126,9 @@ impl<'m> Detector<'m> {
                     .add((prob, 1));
             }
 
+            if languages_tmp.len() == languages.len() {
+                continue;
+            }
             languages_tmp.into_iter().for_each(|language| {
                 output.get_safe_unchecked_mut(language as usize).0 += min_prob_getter(language);
             });
@@ -190,15 +193,6 @@ impl<'m> Detector<'m> {
             languages,
             output,
         );
-
-        /* let mut dbg: Vec<_> = output
-            .iter()
-            .enumerate()
-            .filter(|(_, d)| d.1 > 0)
-            .map(|(l, d)| (ScriptLanguage::transmute_from_usize(l), d))
-            .collect();
-        dbg.sort_by(|(_, d1), (_, d2)| d2.1.cmp(&d1.1).then(d2.0.total_cmp(&d1.0)));
-        println!("OUTPUT {:?}", dbg); */
     }
 
     /// Computes mean average for each language
@@ -298,6 +292,15 @@ impl<'m> Detector<'m> {
                 &filtered_languages,
                 &mut probabilities,
             );
+
+            /* let mut dbg: Vec<_> = probabilities
+                .iter()
+                .enumerate()
+                .filter(|(_, d)| d.1 > 0)
+                .map(|(l, d)| (ScriptLanguage::transmute_from_usize(l), d))
+                .collect();
+            dbg.sort_by(|(_, d1), (_, d2)| (d2.0 / d2.1 as f64).total_cmp(&(d1.0 / d1.1 as f64)));
+            println!("OUTPUT {:?}", dbg); */
         }
 
         let mut probabilities_mean = Self::probabilities_mean(probabilities, filtered_languages);

@@ -3,6 +3,7 @@ use ::std::{collections::HashMap, fmt};
 use alphabet_detector::{ScriptLanguage, ScriptLanguageArr};
 use debug_unsafe::slice::SliceGetter;
 use rkyv::util::AlignedVec;
+use strum::IntoEnumIterator;
 
 pub(crate) type StorageNgrams = HashMap<String, Vec<(u16, f64)>, rustc_hash::FxBuildHasher>;
 // Vec because array requires 64-bit pointers, failed with
@@ -45,6 +46,11 @@ impl fmt::Debug for BinStorage {
     }
 }
 
+#[inline]
+fn compute_min_probability(size: usize) -> f64 {
+    (1.0 / (size as f64)).ln()
+}
+
 impl BinStorage {
     pub const FILE_NAME: &str = "langram_models.bin";
 
@@ -53,29 +59,27 @@ impl BinStorage {
             return;
         };
 
-        let model_wordgrams = ::core::mem::take(
-            model
-                .ngrams
-                .get_safe_unchecked_mut(NgramSize::Word as usize),
-        );
+        let model_wordgrams =
+            ::core::mem::take(model.get_safe_unchecked_mut(NgramSize::Word as usize));
 
         if !model_wordgrams.is_empty() {
-            let new_wordgram_min_probability =
-                Model::compute_min_probability(model_wordgrams.len()) * 4.0;
-            self.wordgram_min_probability = self
-                .wordgram_min_probability
-                .min(new_wordgram_min_probability);
-
             for (word, prob) in model_wordgrams {
+                self.wordgram_min_probability = self.wordgram_min_probability.min(prob * 4.0);
                 let entry = self.wordgrams.entry(word).or_default();
                 entry.push((lang as u16, prob));
             }
         }
 
-        for (ngram_size, model_ngrams) in model.ngrams.into_iter().enumerate() {
+        for (ngram_size, model_ngrams) in model.into_iter().enumerate() {
             let ngram_size = NgramSize::from(ngram_size);
             if ngram_size == NgramSize::Word {
                 continue;
+            }
+            if ngram_size == NgramSize::Uni {
+                *self
+                    .langs_ngram_min_probability
+                    .get_safe_unchecked_mut(lang as usize) =
+                    compute_min_probability(model_ngrams.len());
             }
 
             let ngram_model = self.ngrams.get_safe_unchecked_mut(ngram_size as usize);
@@ -84,13 +88,10 @@ impl BinStorage {
                 entry.push((lang as u16, prob));
             }
         }
-
-        *self
-            .langs_ngram_min_probability
-            .get_safe_unchecked_mut(lang as usize) = model.ngram_min_probability;
     }
 
-    pub fn reorder(&mut self) {
+    pub fn finalize(&mut self) {
+        // reorder
         self.ngrams
             .iter_mut()
             .chain([&mut self.wordgrams])
@@ -102,6 +103,18 @@ impl BinStorage {
                         .cmp(&ScriptLanguage::transmute_from_usize(*l2 as usize))
                 })
             });
+
+        // normalize
+        let max_prob = ScriptLanguage::iter().fold(f64::NEG_INFINITY, |acc, lang| {
+            self.langs_ngram_min_probability
+                .get_safe_unchecked(lang as usize)
+                .max(acc)
+        }) + 0.05;
+        for lang in ScriptLanguage::iter() {
+            *self
+                .langs_ngram_min_probability
+                .get_safe_unchecked_mut(lang as usize) -= max_prob;
+        }
     }
 
     #[inline]
