@@ -10,7 +10,7 @@ fn count_single_language_scripts() {
         }
     }
     assert_eq!(
-        single, 130,
+        single, 134,
         "Change single language scripts count in docs to {single}"
     );
 }

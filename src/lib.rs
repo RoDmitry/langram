@@ -1,6 +1,6 @@
 //! # Natural language detection library
 //!
-//! ## 317 ScriptLanguages (187 models + 130 single language scripts)
+//! ## 321 ScriptLanguages (187 models + 134 single language scripts)
 //!
 //! One language can be written in multiple scripts, so it will be detected as a different [`ScriptLanguage`](enum.ScriptLanguage.html) (language + script).
 //!

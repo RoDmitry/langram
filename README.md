@@ -3,7 +3,7 @@
 [![Crate](https://img.shields.io/crates/v/langram.svg)](https://crates.io/crates/langram)
 [![API](https://docs.rs/langram/badge.svg)](https://docs.rs/langram)
 
-## 317 ScriptLanguages (187 models + 130 single language scripts)
+## 321 ScriptLanguages (187 models + 134 single language scripts)
 
 > One language can be written in multiple scripts, so it will be detected as a different [`ScriptLanguage`](https://docs.rs/langram/latest/langram/enum.ScriptLanguage.html) (language + script)
 
