@@ -111,6 +111,7 @@ static MODELS_ALL_LANGUAGES_PRELOADED: LazyLock<ModelsStorage> =
     case(Russian, "этот"),
     case(Spanish, "¿que?"),
     case(Spanish, "años"),
+    case(TokPisin, "strong"), // tests skip `strong` param
     case(Ukrainian, "пристрої"),
     case(Vietnamese, "chỉnh"),
     case(Vietnamese, "chọn"),
