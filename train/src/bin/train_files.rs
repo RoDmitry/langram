@@ -1,3 +1,5 @@
+#![feature(string_into_chars)]
+
 use ::std::{
     fs,
     fs::{DirEntry, File},
@@ -8,7 +10,7 @@ use ::std::{
     time::Duration,
 };
 use alphabet_detector::{
-    reader::ReadCharsChunks, slang_arr_default, ScriptLanguage, ScriptLanguageArr, UcdScript,
+    reader::ReadChunks, slang_arr_default, ScriptLanguage, ScriptLanguageArr, UcdScript,
 };
 use cap::Cap;
 use clap::Parser;
@@ -100,7 +102,9 @@ fn process(path: DirEntry, langs_seen: Arc<Mutex<ScriptLanguageArr<bool>>>, out_
         println!("*{file_name}* started {lang:?}");
 
         let file = BufReader::new(File::open(path.path()).expect("open failed"));
-        let ch_iter = file.chars_chunks(b'\n').map(|v| (0, v.unwrap()));
+        let ch_iter = file
+            .chunks(b'\n')
+            .flat_map(|s| s.unwrap().into_chars().map(|c| (0, c)));
         let result = langram_train::create_model_and_write_files(&out_mod_path, ch_iter, lang);
         println!("*{file_name}* done model {result:?}");
 
