@@ -5,6 +5,8 @@
 
 ## 321 ScriptLanguages (187 models + 134 single language scripts)
 
+### Usage examples in [docs.rs](https://docs.rs/langram).
+
 > One language can be written in multiple scripts, so it will be detected as a different [`ScriptLanguage`](https://docs.rs/langram/latest/langram/enum.ScriptLanguage.html) (language + script)
 
 Uses [`alphabet_detector`](https://github.com/RoDmitry/alphabet_detector) as a word separator + language prefilter.
@@ -20,7 +22,7 @@ Also more accurate than Whatlang or Whichlang. More info at the [Comparison with
 
 To better understand the accuracy of different modes, look into the [Accuracy report](https://github.com/RoDmitry/lang_detectors_compare/blob/main/accuracy/langram.csv).
 
-### Setup
+## Setup
 
 To use this library, you need a binary models file, which must be placed near the executable, or set `LANGRAM_MODELS_PATH`.
 

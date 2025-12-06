@@ -7,6 +7,16 @@
 //! `ISO 639-3` (using [`Language`](enum.Language.html#implementations)) and `ISO 15924` (using [`Script`](enum.Script.html#implementations))
 //! are implemented, also combined using [`ScriptLanguage`](enum.ScriptLanguage.html#implementations).
 //!
+//! # Setup
+//!
+//! To use this library, you need a binary models file, which must be placed near the executable, or set `LANGRAM_MODELS_PATH`.
+//!
+//! It can be:
+//!
+//! * Downloaded from [langram_models releases](https://github.com/RoDmitry/langram_models/releases);
+//!
+//! * Built (recommened if big-endian target) [langram_models](https://github.com/RoDmitry/langram_models). Which is more advanced and allows you to remove model ngrams, and recompile, so that models binary would be lighter.
+//!
 //! # Example
 //! ```rust
 //! use langram::{DetectorBuilder, ModelsStorage};
