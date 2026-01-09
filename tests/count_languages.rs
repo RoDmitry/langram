@@ -1,16 +1,16 @@
-use alphabet_detector::UcdScript;
+use alphabet_detector::{ScriptLanguage, UcdScript};
 use strum::IntoEnumIterator;
 
 #[test]
 fn count_single_language_scripts() {
     let mut single = 0;
     for script in UcdScript::iter() {
-        if alphabet_detector::script_char_to_slangs(script, char::default()).len() == 1 {
+        if ScriptLanguage::all_with_script(script).len() == 1 {
             single += 1;
         }
     }
     assert_eq!(
-        single, 134,
+        single, 135,
         "Change single language scripts count in docs to {single}"
     );
 }

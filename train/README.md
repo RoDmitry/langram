@@ -7,3 +7,4 @@ Used [OpenLID](https://github.com/laurieburchell/open-lid-dataset) (201 language
 
 Unpacked with `pigz -dc ../lid201-data.tsv.gz | awk -F"\t" '{gsub(/_/, "", $2); print $1 > $2}'`.
 Renamed `korHang` to `korKore`, `zho` to `cmn`, `est` to `ekk`, `tgl` to `fil`, `grn` to `gug`, `kon` to `ktu`, `san` to `cls`.
+Removed `taqTfng`.

@@ -6,9 +6,9 @@ use ::std::{
     path::Path,
 };
 use ahash::AHashMap;
-use alphabet_detector::{filter_max, ScriptLanguage, UcdScript};
+use alphabet_detector::{ScriptLanguage, UcdScript};
 use brotli::CompressorWriter;
-use itertools::Itertools;
+use debug_unsafe::slice::SliceGetter;
 use langram::NgramSize;
 
 pub trait FileModelWriter {
@@ -38,13 +38,13 @@ pub fn create_model_and_write_files(
     let mut word_chars: Vec<Vec<char>> = words
         // .inspect(|wld| println!("{:?}", wld))
         // filter
-        .filter_map(|wld| {
+        .filter_map(|wld: alphabet_detector::Word<Vec<char>>| {
             // no filter for `Script::Han`
             if is_han {
                 return Some(wld.buf);
             }
 
-            if filter_max(wld.langs_cnt).0.contains(&language) {
+            if *wld.langs_cnt.get_safe_unchecked(language as usize) == wld.buf.len() as u32 {
                 Some(wld.buf)
             } else {
                 None
