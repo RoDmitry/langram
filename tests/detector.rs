@@ -57,6 +57,7 @@ static MODELS_ALL_LANGUAGES_PRELOADED: LazyLock<ModelsStorage> =
     case(Danish, "indebærer"),
     case(Danish, "måned"),
     case(English, "house"),
+    case(English, "indi\u{307}vi\u{307}si\u{307}bi\u{307}li\u{307}ty"),
     case(Esperanto, "apenaŭ"),
     case(Estonian, "päralt"),
     case(Estonian, "tõeliseks"),

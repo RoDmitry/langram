@@ -192,7 +192,7 @@ fn main() {
         let max_threads = (MEM_LIMIT_SLEEP / (file_size as usize * 5)).max(1);
         if max_threads < pool.max_count() {
             while pool.queued_count() > 0 || pool.active_count() > max_threads {
-                thread::sleep(Duration::from_secs(5));
+                thread::sleep(Duration::from_secs(1));
             }
             println!("Limiting num threads to {max_threads}");
             pool.set_num_threads(max_threads);
