@@ -82,7 +82,7 @@ impl<'m> ModelsStorage<'m> {
         let mut file_storage = BinStorage::default();
 
         for (l, m) in input {
-            file_storage.add(l.into_str().to_owned(), m);
+            file_storage.add(l, m);
         }
         file_storage.finalize();
 

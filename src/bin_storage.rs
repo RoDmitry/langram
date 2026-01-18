@@ -54,11 +54,7 @@ fn compute_min_probability(size: usize) -> f64 {
 impl BinStorage {
     pub const FILE_NAME: &str = "langram_models.bin";
 
-    pub fn add(&mut self, name: String, mut model: Model) {
-        let Some(lang) = ScriptLanguage::from_str(&name) else {
-            return;
-        };
-
+    pub fn add(&mut self, lang: ScriptLanguage, mut model: Model) {
         let model_wordgrams =
             ::core::mem::take(model.get_safe_unchecked_mut(NgramSize::Word as usize));
 
