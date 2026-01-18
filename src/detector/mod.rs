@@ -115,7 +115,9 @@ impl<'m> Detector<'m> {
 
             let mut languages_tmp = languages.clone();
             for ArchivedTuple2(language, prob) in langs_probs.iter() {
-                let language = ScriptLanguage::transmute_from_usize(language.to_native() as usize);
+                let language =
+                    unsafe { ScriptLanguage::transmute_from_usize(language.to_native() as usize) };
+
                 if !languages_tmp.remove(&language) {
                     continue;
                 }

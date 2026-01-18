@@ -114,7 +114,9 @@ fn test_mock_model_ngram_lookup(language: ScriptLanguage, ngram: &str, expected_
         .get(ngram)
         .and_then(|v| {
             v.iter().find_map(|ArchivedTuple2(l, p)| {
-                if ScriptLanguage::transmute_from_usize(l.to_native() as usize) == language {
+                if unsafe { ScriptLanguage::transmute_from_usize(l.to_native() as usize) }
+                    == language
+                {
                     Some(p.to_native())
                 } else {
                     None
@@ -180,7 +182,7 @@ fn test_mock_probabilities_languages_ngrams(
         if cnt == 0 {
             continue;
         }
-        let language = ScriptLanguage::transmute_from_usize(language);
+        let language = unsafe { ScriptLanguage::transmute_from_usize(language) };
         let expected_probability = expected_probabilities[&language];
 
         assert!(

@@ -94,7 +94,7 @@ impl BinStorage {
             .inspect(|v| println!("len {:?}", v.len()))
             .flat_map(|v| v.iter_mut())
             .for_each(|(_, v)| {
-                v.sort_by(|(l1, _), (l2, _)| {
+                v.sort_by(|(l1, _), (l2, _)| unsafe {
                     ScriptLanguage::transmute_from_usize(*l1 as usize)
                         .cmp(&ScriptLanguage::transmute_from_usize(*l2 as usize))
                 })
