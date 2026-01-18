@@ -3,7 +3,7 @@
 [![Crate](https://img.shields.io/crates/v/langram.svg)](https://crates.io/crates/langram)
 [![API](https://docs.rs/langram/badge.svg)](https://docs.rs/langram)
 
-## 320 ScriptLanguages (185 models + 135 single language scripts)
+## 346 ScriptLanguages (188 models + 158 scripts with no models)
 
 ### Usage examples in [docs.rs](https://docs.rs/langram).
 

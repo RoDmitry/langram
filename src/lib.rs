@@ -1,6 +1,6 @@
 //! # Natural language detection library
 //!
-//! ## 321 ScriptLanguages (187 models + 134 single language scripts)
+//! ## 346 ScriptLanguages (188 models + 158 scripts with no models)
 //!
 //! One language can be written in multiple scripts, so it will be detected as a different [`ScriptLanguage`](enum.ScriptLanguage.html) (language + script).
 //!
@@ -77,7 +77,9 @@ macro_rules! ahashset {
     };
 }
 
-pub use alphabet_detector::{Language, Script, ScriptLanguage, UcdScript};
+pub use alphabet_detector::{
+    EnumCount, IntoEnumIterator, Language, Script, ScriptLanguage, UcdScript,
+};
 
 pub mod bin_storage;
 mod detector;
