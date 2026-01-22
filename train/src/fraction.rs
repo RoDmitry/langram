@@ -70,16 +70,17 @@ impl<'de> Visitor<'de> for FractionVisitor {
 
     fn visit_str<E: Error>(self, v: &str) -> Result<Self::Value, E> {
         let bytes = v.as_bytes();
-        let (parsed_numerator, len) = atoi_simd::parse_prefix(bytes)
+        let (parsed_numerator, len) = atoi_simd::parse_prefix::<_, false, false>(bytes)
             .map_err(|e| Error::invalid_value(Unexpected::Str(v), &e.to_string().as_str()))?;
 
         if bytes.get(len).is_none_or(|&v| v != b'/') {
             return Err(Error::invalid_value(Unexpected::Str(v), &"'/'"));
         }
 
-        let parsed_denominator = atoi_simd::parse(&bytes[(len + 1)..]).map_err(|e| {
-            serde::de::Error::invalid_value(Unexpected::Str(v), &e.to_string().as_str())
-        })?;
+        let parsed_denominator =
+            atoi_simd::parse::<_, false, false>(&bytes[(len + 1)..]).map_err(|e| {
+                serde::de::Error::invalid_value(Unexpected::Str(v), &e.to_string().as_str())
+            })?;
 
         Ok(Fraction::new(parsed_numerator, parsed_denominator))
     }
