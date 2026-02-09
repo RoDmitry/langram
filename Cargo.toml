@@ -1,13 +1,13 @@
 [package]
 name = "langram"
-version = "0.11.0"
+version = "0.11.1"
 authors = ["Dmitry Rodionov <gh@rdmtr.com>"]
 description = "Natural language detection library"
 documentation = "https://docs.rs/langram/"
 repository = "https://github.com/RoDmitry/langram"
 categories = ["text-processing"]
 keywords = ["nlp", "language", "detect", "recognise", "process"]
-include = ["src"]
+include = ["src", "LICENSE-*"]
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 edition = "2021"

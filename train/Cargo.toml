@@ -1,11 +1,11 @@
 [package]
 name = "langram_train"
-version = "0.11.0"
+version = "0.11.1"
 authors = ["Dmitry Rodionov <gh@rdmtr.com>"]
 description = "Langram train models"
 documentation = "https://docs.rs/langram_train/"
 repository = "https://github.com/RoDmitry/langram"
-include = ["src"]
+include = ["src", "LICENSE-*"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
 
