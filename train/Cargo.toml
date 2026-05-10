@@ -30,7 +30,6 @@ langram = { path = "..", version = "0.11" }
 libc = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_encom = "0.4"
-serde_map = "0.2"
-strum = "0.27"
+serde_map = "0.3"
 thiserror = "2"
 threadpool = "1"

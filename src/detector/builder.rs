@@ -1,7 +1,6 @@
 use super::{Detector, ModelsStorage, NgramSize};
 use crate::ngram_size::{NgramSizes, NgramSizesTrait};
-use alphabet_detector::{ScriptLanguage, ScriptLanguageIter};
-use strum::IntoEnumIterator;
+use alphabet_detector::{IntoEnumIterator, ScriptLanguage, ScriptLanguageIter};
 
 #[derive(Clone, Debug)]
 pub struct DetectorBuilder<'m, L>
@@ -113,7 +112,7 @@ mod tests {
     use crate::{ModelsStorage, ScriptLanguage};
     use ::std::collections::HashSet;
     use ahash::AHashSet;
-    use strum::EnumCount;
+    use alphabet_detector::EnumCount;
 
     #[test]
     fn test_build() {

@@ -404,7 +404,7 @@ impl<'m> Detector<'m> {
             .position(|(_, p)| *p < reorder_probability)
             .unwrap_or(probabilities.len());
         probabilities.truncate(lim);
-        probabilities.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+        probabilities.sort_unstable_by_key(|p| p.0);
 
         probabilities.first().map(|(l, _)| *l)
     }

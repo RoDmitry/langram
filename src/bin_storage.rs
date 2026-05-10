@@ -1,9 +1,8 @@
 use crate::{model::Model, ngram_size::NGRAM_MAX_LEN, NgramSize};
 use ::std::{collections::HashMap, fmt};
-use alphabet_detector::{ScriptLanguage, ScriptLanguageArr};
+use alphabet_detector::{IntoEnumIterator, ScriptLanguage, ScriptLanguageArr};
 use debug_unsafe::slice::SliceGetter;
 use rkyv::util::AlignedVec;
-use strum::IntoEnumIterator;
 
 pub(crate) type StorageNgrams = HashMap<String, Vec<(u16, f64)>, rustc_hash::FxBuildHasher>;
 // Vec because array requires 64-bit pointers, failed with
@@ -52,8 +51,6 @@ fn compute_min_probability(size: usize) -> f64 {
 }
 
 impl BinStorage {
-    pub const FILE_NAME: &str = "langram_models.bin";
-
     pub fn add(&mut self, lang: ScriptLanguage, mut model: Model) {
         let model_wordgrams =
             ::core::mem::take(model.get_safe_unchecked_mut(NgramSize::Word as usize));

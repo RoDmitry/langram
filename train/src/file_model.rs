@@ -9,10 +9,9 @@ use debug_unsafe::slice::SliceGetter;
 use itertools::Itertools;
 use langram::{
     model::{Model, ModelNgrams},
-    NgramSize,
+    IntoEnumIterator, NgramSize,
 };
 use serde_map::SerdeMap;
-use strum::IntoEnumIterator;
 use thiserror::Error;
 /* use std::{
     iter::Map,

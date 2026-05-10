@@ -1,11 +1,17 @@
-use crate::bin_storage::{ArchivedBinStorage, BinStorage, StorageNgrams, StorageNgramsArr};
+use crate::bin_storage::{ArchivedBinStorage, StorageNgrams, StorageNgramsArr};
 #[cfg(test)]
 use crate::model::Model;
-use ::std::{fmt, io};
+use ::std::{
+    env, fmt,
+    fs::{self, File},
+    io::{self, copy, BufReader, BufWriter},
+    path::PathBuf,
+};
 use alphabet_detector::{ScriptLanguage, ScriptLanguageArr};
+use brotli_decompressor::Decompressor;
 use memmap2::Mmap;
+use reqwest::blocking::get;
 use rkyv::Archive;
-use std::{env, fs::File, path::Path};
 use thiserror::Error;
 
 pub(super) type NgramModel = <StorageNgrams as Archive>::Archived;
@@ -29,24 +35,75 @@ impl fmt::Debug for ModelsStorage<'_> {
 }
 
 impl<'m> ModelsStorage<'m> {
+    pub const FILE_NAME: &'static str = "langram_models.bin";
+
     #[inline]
     fn get_file() -> Result<File, ModelsStorageError> {
-        if let Ok(path) = env::var("LANGRAM_MODELS_PATH") {
-            let path = Path::new(&path);
-            if let Ok(file) = File::open(path) {
-                return Ok(file);
+        let path = match env::var("LANGRAM_MODELS_PATH") {
+            Ok(path_str) => {
+                let mut path = PathBuf::from(path_str);
+                if path.is_file() {
+                    if let Ok(file) = File::open(&path) {
+                        return Ok(file);
+                    }
+                    path.pop();
+                }
+                path
+            }
+            Err(_) => {
+                let mut path_near = env::current_exe().map_err(ModelsStorageError::CurrentExe)?;
+                path_near.pop();
+                path_near
             }
         };
 
-        let mut path = env::current_exe().map_err(ModelsStorageError::CurrentExe)?;
-        path.pop();
-        path.push(BinStorage::FILE_NAME);
-        if let Ok(file) = File::open(path) {
+        let file_path = path.join(Self::FILE_NAME);
+        if let Ok(file) = File::open(&file_path) {
             return Ok(file);
         }
 
-        let path = Path::new("/app/langram_models");
-        File::open(path.join(BinStorage::FILE_NAME)).map_err(ModelsStorageError::ModelsFileOpen)
+        let part_file_path = path.join(concat_const::concat!(ModelsStorage::FILE_NAME, ".part"));
+        if part_file_path.exists() {
+            fs::remove_file(&part_file_path).map_err(ModelsStorageError::ModelsPartFileRemove)?;
+        }
+
+        let file =
+            File::create_new(&part_file_path).map_err(ModelsStorageError::ModelsPartFileCreate)?;
+        let mut writer = BufWriter::new(file);
+
+        let compressed_file_path =
+            path.join(concat_const::concat!(ModelsStorage::FILE_NAME, ".br"));
+        if let Ok(compressed_file) = File::open(compressed_file_path) {
+            let reader = BufReader::new(compressed_file);
+
+            // Brotli decompressor
+            let mut decompressor = Decompressor::new(reader, 4096);
+            // Stream decompressed bytes into output file
+            copy(&mut decompressor, &mut writer).map_err(ModelsStorageError::StreamDecompressor)?;
+        } else {
+            println!("Downloading langram models...");
+            let response = get(
+                "https://github.com/RoDmitry/langram_models/releases/download/v0.11/langram_models.bin.br"
+            ).map_err(ModelsStorageError::Download)?;
+
+            // Brotli decompressor
+            let mut decompressor = Decompressor::new(response, 64 * 1024);
+            // Stream decompressed bytes into output file
+            copy(&mut decompressor, &mut writer).map_err(ModelsStorageError::StreamDecompressor)?;
+            println!("Downloaded langram models");
+        }
+
+        // Also ensures all buffered data is written
+        let file = writer
+            .into_inner()
+            .map_err(ModelsStorageError::WriterIntoInner)?;
+
+        // Optional but safer against power loss
+        file.sync_all().map_err(ModelsStorageError::FileSync)?;
+
+        fs::rename(part_file_path, file_path).map_err(ModelsStorageError::ModelsPartFileRename)?;
+
+        Ok(file)
     }
 
     #[inline]
@@ -79,7 +136,7 @@ impl<'m> ModelsStorage<'m> {
 
     #[cfg(test)]
     pub fn from_models(input: impl IntoIterator<Item = (ScriptLanguage, Model)>) -> Self {
-        let mut file_storage = BinStorage::default();
+        let mut file_storage = crate::bin_storage::BinStorage::default();
 
         for (l, m) in input {
             file_storage.add(l, m);
@@ -94,7 +151,7 @@ impl<'m> ModelsStorage<'m> {
 }
 
 #[cfg(test)]
-fn mmap_from_bytes(data: &[u8]) -> std::io::Result<Mmap> {
+fn mmap_from_bytes(data: &[u8]) -> ::std::io::Result<Mmap> {
     let mut mmap = memmap2::MmapMut::map_anon(data.len())?;
     mmap.copy_from_slice(data);
     mmap.make_read_only()
@@ -104,8 +161,20 @@ fn mmap_from_bytes(data: &[u8]) -> std::io::Result<Mmap> {
 pub enum ModelsStorageError {
     #[error("Current exe error")]
     CurrentExe(#[source] io::Error),
-    #[error("Models file open error")]
-    ModelsFileOpen(#[source] io::Error),
+    #[error("Models part file create error")]
+    ModelsPartFileCreate(#[source] io::Error),
+    #[error("Models part file remove error")]
+    ModelsPartFileRemove(#[source] io::Error),
+    #[error("Models part file rename error")]
+    ModelsPartFileRename(#[source] io::Error),
+    #[error("Failed to stream decompressed model bytes into file")]
+    StreamDecompressor(#[source] io::Error),
+    #[error("Failed to download models")]
+    Download(#[source] reqwest::Error),
+    #[error("Failed to flush the buffer")]
+    WriterIntoInner(#[source] io::IntoInnerError<BufWriter<File>>),
+    #[error("Failed to sync file data to disk")]
+    FileSync(#[source] io::Error),
     #[error("Mmap error")]
     Mmap(#[source] io::Error),
     #[error("Rkyv access error")]

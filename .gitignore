@@ -10,5 +10,3 @@ Cargo.lock
 /.idea
 /.vscode
 .DS_Store
-
-src/main.rs

@@ -20,13 +20,16 @@ path = "src/lib.rs"
 alphabet_detector = { path = "../alphabet_detector", version = "0.12" }
 arraystring = "0.3"
 arrayvec = "0.7"
+brotli-decompressor = "5"
+concat_const = "0.2"
 debug_unsafe = { version = "0.1.2", features = ["arraystring"] }
 # debug_unsafe = { path = "../debug_unsafe", version = "0.1", features = ["arraystring"] }
 memmap2 = "0.9"
+reqwest = { version = "0.13", features = ["blocking"] }
 rkyv = "0.8"
 rustc-hash = "2"
-strum = "0.27"
-strum_macros = "0.27"
+strum = "0.28"
+strum_macros = "0.28"
 thiserror = "2"
 
 [dev-dependencies]
